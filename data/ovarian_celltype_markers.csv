@@ -1,0 +1,101 @@
+,group,scores,names
+0,fibroblast,537.7587,CALD1
+1,fibroblast,493.7769,DCN
+2,fibroblast,471.44705,COL1A2
+3,fibroblast,470.3396,COL1A1
+4,fibroblast,423.9499,COL3A1
+5,fibroblast,417.017,COL6A2
+6,fibroblast,399.70557,SPARC
+7,fibroblast,392.5664,COL6A1
+8,fibroblast,339.5826,COL6A3
+9,fibroblast,324.59247,AEBP1
+10,fibroblast,318.5349,LGALS1
+11,fibroblast,314.83374,RARRES2
+12,fibroblast,304.0086,COL5A2
+13,fibroblast,303.7801,LUM
+14,fibroblast,303.47354,C1S
+15,fibroblast,294.2327,VIM
+16,fibroblast,277.5984,C1R
+17,fibroblast,266.7281,COL5A1
+18,fibroblast,262.3355,PCOLCE
+19,fibroblast,250.99309,CTHRC1
+40,endothelial cell,194.77312,IGFBP7
+41,endothelial cell,154.33574,A2M
+42,endothelial cell,132.50066,VWF
+43,endothelial cell,119.94136,COL4A1
+44,endothelial cell,117.800545,HSPG2
+45,endothelial cell,115.73563,SPARCL1
+46,endothelial cell,112.10818,SPARC
+47,endothelial cell,111.78914,ENG
+48,endothelial cell,108.08269,COL4A2
+49,endothelial cell,105.262375,RAMP2
+50,endothelial cell,95.94692,ADGRL4
+51,endothelial cell,94.82577,EGFL7
+52,endothelial cell,91.01437,SPTBN1
+53,endothelial cell,90.290016,PECAM1
+54,endothelial cell,89.14014,APP
+55,endothelial cell,86.43417,CD34
+56,endothelial cell,84.99029,CD93
+57,endothelial cell,83.6511,CLEC14A
+58,endothelial cell,83.567726,GNG11
+59,endothelial cell,80.2929,VIM
+60,lymphocyte,350.42297,PTPRC
+61,lymphocyte,338.56934,CD2
+62,lymphocyte,313.5503,CD52
+63,lymphocyte,305.67917,BTG1
+64,lymphocyte,282.60428,CCL5
+65,lymphocyte,282.1551,IL32
+66,lymphocyte,267.51385,CXCR4
+67,lymphocyte,248.28662,HCST
+68,lymphocyte,241.17168,B2M
+69,lymphocyte,240.56396,GZMA
+70,lymphocyte,240.27095,CD3D
+71,lymphocyte,235.43913,TMSB4X
+72,lymphocyte,233.36429,TSC22D3
+73,lymphocyte,232.29831,ETS1
+74,lymphocyte,230.11894,CORO1A
+75,lymphocyte,229.14363,ZFP36L2
+76,lymphocyte,225.84946,CD3E
+77,lymphocyte,217.71762,EVL
+78,lymphocyte,217.55128,TRAC
+79,lymphocyte,216.86755,NKG7
+100,plasma cell,158.14955,SSR4
+101,plasma cell,155.95633,MZB1
+102,plasma cell,124.02805,IGHG1
+103,plasma cell,119.35485,XBP1
+104,plasma cell,103.28628,SEC11C
+105,plasma cell,99.50665,FKBP11
+106,plasma cell,99.23481,JCHAIN
+107,plasma cell,91.28104,IGHG3
+108,plasma cell,90.0758,DERL3
+109,plasma cell,89.22674,HERPUD1
+110,plasma cell,79.9788,PRDX4
+111,plasma cell,79.44029,IGKC
+112,plasma cell,76.39867,IGHG4
+113,plasma cell,69.407196,SPCS3
+114,plasma cell,66.37287,FKBP2
+115,plasma cell,63.662888,TENT5C
+116,plasma cell,62.508656,SSR3
+117,plasma cell,62.31411,ITM2C
+118,plasma cell,62.158844,FCRL5
+119,plasma cell,61.96489,CD79A
+120,fallopian tube secretory epithelial cell,492.3896,WFDC2
+121,fallopian tube secretory epithelial cell,373.32632,KRT18
+122,fallopian tube secretory epithelial cell,352.58252,EPCAM
+123,fallopian tube secretory epithelial cell,340.97968,KRT8
+124,fallopian tube secretory epithelial cell,332.63763,SPINT2
+125,fallopian tube secretory epithelial cell,320.16037,CLDN3
+126,fallopian tube secretory epithelial cell,307.73636,KRT19
+127,fallopian tube secretory epithelial cell,286.346,S100A13
+128,fallopian tube secretory epithelial cell,264.93332,SLPI
+129,fallopian tube secretory epithelial cell,263.44287,RPL8
+130,fallopian tube secretory epithelial cell,255.58327,BCAM
+131,fallopian tube secretory epithelial cell,255.12851,MUC1
+132,fallopian tube secretory epithelial cell,253.56633,CD9
+133,fallopian tube secretory epithelial cell,246.38803,DSP
+134,fallopian tube secretory epithelial cell,239.73137,RPL35A
+135,fallopian tube secretory epithelial cell,235.49486,CD24
+136,fallopian tube secretory epithelial cell,231.00053,MSLN
+137,fallopian tube secretory epithelial cell,227.5869,KRT7
+138,fallopian tube secretory epithelial cell,225.24545,ELF3
+139,fallopian tube secretory epithelial cell,221.85791,LAPTM4B
