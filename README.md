@@ -81,6 +81,16 @@ To run the demo, simply run the following command after downloading the data:
 make run_pipeline
 ```
 
-## Citation
+## Preprint
+https://www.biorxiv.org/content/early/2024/11/08/2024.11.07.622225
 
-If you use this code, please cite the following paper:
+```bash
+
+@article{chadoutaud_scellst_2024,
+	title = {{sCellST}: a {Multiple} {Instance} {Learning} approach to predict single-cell gene expression from {H}\&{E} images using spatial transcriptomics},
+	doi = {10.1101/2024.11.07.622225},
+	journal = {bioRxiv},
+	author = {Chadoutaud, Loic and Lerousseau, Marvin and Herrero-Saboya, Daniel and Ostermaier, Julian and Fontugne, Jacqueline and Barillot, Emmanuel and Walter, Thomas},
+	year = {2024}
+}
+```
