@@ -1,84 +1,44 @@
+
 # sCellST
 
 sCellST is a novel method for inferring gene expression from H&E images trained on spatial transcriptomics data.
 
-![figure](method.png)
+![figure](method.jpg)
 
-## Using the repository
-
-To install the package, we recommend using poetry. 
-More information on how to install poetry can be found [here](https://python-poetry.org/docs/).
-Clone this repository and simply run the following command  in the repository to install a python environment with all the dependencies:
-It has been tested on a linux machine with cuda 11.8.
+# Installation
+The code has been tested with python 3.10 and cuda 11.8
 
 ```bash
-git clone https://github.com/loicchadoutaud/sCellST.git
+git clone --recurse-submodules git@github.com:loicchadoutaud/sCellST.git
 cd sCellST
 conda env create -f environment.yml
-conda activate scellst
+conda activate sCellST
+CODEPATH=$(realpath .)
+conda env config vars set PYTHONPATH=$PYTHONPATH:$CODEPATH:$CODEPATH/external/HEST/src:$CODEPATH/external/cell_SSL
+conda deactivate
+conda activate sCellST
 ```
 
-## Organization of the repository
+# Code structure
 
-This repository is organized as follows:
+The code now used the HEST database (https://github.com/mahmoodlab/HEST) as raw data since it allows to use many publicly released spatial transcriptomics.
 
-- `hovernet` contains the code necessary to segment cells on the H&E images. 
-It is a fork of the HoverNet repository, which can be found [here](https://github.com/vqdang/hover_net).
-- `moco-v3` contains the code necessary to train the MoCo-v3 model on the segmented cells.
-It is based on the official MoCo-v3 repository, which can be found [here](https://github.com/facebookresearch/moco-v3).
+The code is structured as follows:
+- scellst: source code for the sCellST method + benchmarked methods in scellst/bench
+- external: external code used in the project (as git submodules or code files when modification were necessary)
+- reproducibility notebooks contains all the notebooks used to produce the figures from the paper
+- submit scripts contains all the scripts used to submit the jobs on the cluster with submitit (https://github.com/facebookincubator/submitit)
+- simulation: contains all the code for the simulation experiments
 
-For both repositories, the modifications performed for this project can be found at the top of the original README files.
+# Usage
 
-- `data`: contains the genes used in the paper when not highly variable genes
-- `data_embedder`: contains the code necessary to prepare data before training the GE predictor (sCellST)
-- `scellst`: contains the code necessary to train the GE predictor (sCellST)
-- `scripts`: contains scripts to run the different steps of the pipeline
-- `simulation`: contains the code necessary to create simulated data 
+We provide a notebook to run the full pipeline on a breast cancer slide from the HEST database in training_tutorial.ipynb.
 
-## Data download 
-
-To run the demo, we used a Visium slide from the 10x Genomics website: [link](https://www.10xgenomics.com/datasets/human-breast-cancer-ductal-carcinoma-in-situ-invasive-carcinoma-ffpe-1-standard-1-3-0).
-We provide a Makefile to download the data and create the necessary folders.
-
-To download the data, simply run the following command:
-This will create the dataset folder and download the data in the appropriate folders.
-The data downloaded is:
-- The raw WSI
-- The Visium data
-- The pretrained weights for HoverNet
-
-The following structure will be created:
-```bash
-dataset
-├── raw_wsi
-    └── Visium_FFPE_Human_Breast_Cancer_image.tif
-└── Visium
-    └── Visium_FFPE_Human_Breast_Cancer
-        ├── filtered_feature_bc_matrix.h5
-        └── spatial
-```
-
-If you want to apply to your own data, make sure that the wsi and the associated visium dat starts with the same name.
+# Download reference data
 
 ```bash
-make download_data
-```
-
-## Minimal example
-We also provide in the Makefile the steps to run the full pipeline on the Visium slide downloaded above (around 2 hours to complete).
-The script will perform in order:
-1. Convert wsi to pyramidal file 
-2. Segment cells
-3. Extract cells
-4. Train MoCo-v3
-5. Preprocess Visium data for the sCellST model
-6. Train sCellST
-7. Predict gene expression on cells from the Visium slide
-
-To run the demo, simply run the following command after downloading the data:
-
-```bash
-make run_pipeline
+# Reference scRNA-seq dataset
+wget https://datasets.cellxgene.cziscience.com/73fbcec3-f602-4e13-a400-a76ff91c7488.h5ad -O data/raw_ovarian_dataset.h5ad
 ```
 
 ## Preprint

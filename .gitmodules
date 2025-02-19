@@ -1,0 +1,15 @@
+[submodule "external/istar"]
+	path = external/istar
+	url = git@github.com:daviddaiweizhang/istar.git
+[submodule "external/mclSTExp"]
+	path = external/mclSTExp
+	url = git@github.com:ZhicengShi/mclSTExp.git
+	branch = main
+[submodule "external/HisToGene"]
+	path = external/HisToGene
+	url = git@github.com:maxpmx/HisToGene.git
+	branch = main
+[submodule "external/HEST"]
+	path = external/HEST
+	url = git@github.com:mahmoodlab/HEST.git
+	branch = main

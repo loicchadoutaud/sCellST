@@ -1,0 +1,5 @@
+defaults:
+  - data: data
+  - predictor: celltype_predictor
+  - model: model
+  - trainer: trainer

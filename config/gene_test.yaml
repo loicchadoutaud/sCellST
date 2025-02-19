@@ -1,0 +1,6 @@
+defaults:
+  - data: data_test
+  - predictor: gene_predictor
+  - model: model
+  - trainer: trainer_test
+exp_tag: "tag"

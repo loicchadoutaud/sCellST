@@ -1,0 +1,6 @@
+predictor:
+  input_dim: ???
+  hidden_dim: [256, 256, 256]
+  output_dim: 1
+  final_activation: "softplus"
+  dropout_rate: 0.1

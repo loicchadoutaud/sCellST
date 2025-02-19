@@ -1,0 +1,6 @@
+defaults:
+  - data: data_thitogene
+  - predictor: gene_predictor
+  - model: model
+  - trainer: trainer
+exp_tag: "tag"

@@ -1,0 +1,7 @@
+defaults:
+  - data: data_simulation
+  - predictor: gene_predictor
+  - model: model
+  - trainer: trainer
+exp_tag: "tag"
+save_dir_tag: "simulation"

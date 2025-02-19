@@ -1,0 +1,3 @@
+trainer:
+  patience: 20
+  max_epoch: 400

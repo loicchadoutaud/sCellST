@@ -1,6 +1,9 @@
-from .logger import logger
-from .constants import REGISTRY_KEYS
-from .train import train
+import sys
 
+from loguru import logger
 
-__all__ = ["logger", "train", "REGISTRY_KEYS"]
+logger.remove()
+logger.add(
+    sink=sys.stdout,
+    format="<green>{time:HH:mm:ss}</green> <level>{level}</level>: <level>{message}</level>",
+)

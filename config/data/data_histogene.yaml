@@ -1,0 +1,17 @@
+data:
+  data_dir: ""
+  list_training_ids:
+  predict_id:
+  batch_size: 1
+  num_workers: 4
+  frac_train: 1.
+  seed: 0
+  filter_genes: true
+  filter_cells: true
+  normalize: true
+  log1p: true
+  scale: false
+  genes:
+  embedding_tag: ""
+  dataset_handler: "histogene_visium"
+  fold:

@@ -225,7 +225,9 @@ class NegativeBinomial(Distribution):
             mu, theta = _convert_counts_logits_to_mean_disp(total_count, logits)
         else:
             mu, theta = broadcast_all(mu, theta)
-            total_count, logits = _convert_mean_disp_to_counts_logits(mu, theta, self._eps)
+            total_count, logits = _convert_mean_disp_to_counts_logits(
+                mu, theta, self._eps
+            )
         self.mu = mu
         self.theta = theta
         self.scale = scale

@@ -11,18 +11,28 @@ class TaskType(str, Enum):
         return list(map(lambda c: c.value, cls))
 
 
-class AggType(str, Enum):
-    mean = "mean"
-    sum = "sum"
+class ModelType(str, Enum):
+    instance_mil = "instance_mil"
+    supervised = "supervised"
 
     @classmethod
     def list(cls):
         return list(map(lambda c: c.value, cls))
 
 
-class ModelType(str, Enum):
-    instance_mil = "instance_mil"
-    supervised = "supervised"
+class PredictorType(str, Enum):
+    gene_predictor = "gene_predictor"
+    gene_distribution_predictor = "gene_distribution_predictor"
+    supervised_predictor = "supervised_predictor"
+
+    @classmethod
+    def list(cls):
+        return list(map(lambda c: c.value, cls))
+
+
+class MilType(str, Enum):
+    instance = "instance"
+    embedding = "embedding"
 
     @classmethod
     def list(cls):

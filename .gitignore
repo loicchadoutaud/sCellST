@@ -1,6 +1,22 @@
-*.idea
-*.ipynb_checkpoints
-**__pycache__
-scripts/outputs/*
-hovernet/pretrained/*
-dataset/**
+# Byte-compiled / optimized / DLL files
+__pycache__/
+.idea/
+*.py[cod]
+*$py.class
+
+# Dataset
+hest_data/
+
+# Reports
+reports/
+logs/
+
+# Model
+models/
+
+# Lightning logs
+lightning_logs/
+
+# Data
+**.h5ad
+/scellst_reproducibility/reproducibility_notebooks/figures/

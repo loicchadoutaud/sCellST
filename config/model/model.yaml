@@ -1,0 +1,5 @@
+model:
+  task_type: 'regression'
+  lr: 1.e-4
+  gene_names: ???
+  criterion: 'mse'

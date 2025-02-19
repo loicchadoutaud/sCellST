@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "cell-ssl"
+version = "0.1.0"
+description = ""
+authors = ["loicchadoutaud <chadoutaudloic@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+torch = {version = "^2.6.0+cu118", source = "pytorch-gpu-src"}
+torchvision = {version = "^0.21.0+cu118", source = "pytorch-gpu-src"}
+torchaudio = {version = "^2.6.0+cu118", source = "pytorch-gpu-src"}
+
+
+[[tool.poetry.source]]
+name = "pytorch-gpu-src"
+url = "https://download.pytorch.org/whl/cu118"
+priority = "explicit"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
