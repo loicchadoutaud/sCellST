@@ -252,7 +252,7 @@ def predict_cell_dataset(
 def compute_mean_std(
     dataset_path: str,
     batch_size: int = 2048,
-    num_workers: int = 4,
+    num_workers: int = 0,
 ) -> dict:
     logger.info(f"Computing mean/std.")
     transform = Compose(

@@ -32,13 +32,10 @@ from torch.utils.tensorboard import SummaryWriter
 
 from torchvision.models import ResNet50_Weights, ResNet18_Weights
 
-import moco.builder
-import moco.loader
-import moco.optimizer
 import vits
+import moco
 from dataset_utils import create_dataset, compute_and_save_mean_std
-from augmentations import RotationCrop, Posterize, Equalize, Solarize, GaussianBlur
-from external.cell_SSL.augmentations import HEStainAugmentationPil
+from augmentations import RotationCrop, GaussianBlur, HEStainAugmentationPil
 
 torchvision_model_names = sorted(
     name
@@ -273,7 +270,8 @@ def main(args):
 
     args.distributed = args.world_size > 1 or args.multiprocessing_distributed
 
-    ngpus_per_node = torch.cuda.device_count()
+    # ngpus_per_node = torch.cuda.device_count()
+    ngpus_per_node = 1
     if args.multiprocessing_distributed:
         # Since we have ngpus_per_node processes per node, the total world_size
         # needs to be adjusted accordingly

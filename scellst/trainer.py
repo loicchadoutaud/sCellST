@@ -36,7 +36,7 @@ def prepare_trainer(config: DictConfig, save_dir: Path) -> L.Trainer:
     clean_output_folder(save_dir)
 
     os.makedirs(save_dir, exist_ok=True)
-    logger = WandbLogger(project="CellST", save_dir=save_dir, name=save_dir.name)
+    logger = WandbLogger(project="CellST", save_dir=save_dir, name=save_dir.name, offline=True)
     callbacks = prepare_callbacks(save_dir, config.trainer.patience)
 
     trainer = L.Trainer(

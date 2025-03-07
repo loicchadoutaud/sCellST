@@ -4,11 +4,9 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-import json
 import os
 
 from torchvision import datasets, transforms
-from torchvision.datasets.folder import ImageFolder, default_loader
 
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 

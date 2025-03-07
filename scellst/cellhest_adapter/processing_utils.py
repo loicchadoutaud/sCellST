@@ -121,7 +121,7 @@ def convert_to_cellst(
                 perform_xenium_processing(st, path_dataset)
             case _:
                 raise ValueError(f"This should not happen, got {technology[i]}")
-    logger.info("End or processing without errors.")
+    logger.info("End of processing without errors.")
 
 
 def plot_cellst(
@@ -140,7 +140,7 @@ def plot_cellst(
                 plot_xenium(st, path_dataset)
             case _:
                 raise ValueError(f"This should not happen, got {technology[i]}")
-    logger.info("End or plotting without errors.")
+    logger.info("End of plotting without errors.")
 
 
 def save_gene_names(
@@ -197,4 +197,4 @@ def remove_dataset(path_dataset: Path, ids_to_remove: list[str]) -> None:
     for id in ids_to_remove:
         logger.info(f"Removing {id}...")
         remove_files_with_identifier(path_dataset, id)
-    logger.info("End or Removing without errors.")
+    logger.info("End of Removing without errors.")

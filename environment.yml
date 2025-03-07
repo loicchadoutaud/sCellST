@@ -1,10 +1,10 @@
-name: CellST
+name: sCellST
 channels:
   - bioconda
-  - conda-forge
   - pytorch
-  - nvidia
   - pyg
+  - nvidia
+  - conda-forge
 dependencies:
   - _libgcc_mutex=0.1
   - _openmp_mutex=4.5
@@ -67,7 +67,7 @@ dependencies:
   - cached-property=1.5.2
   - cached_property=1.5.2
   - cairo=1.18.0
-  - certifi=2024.12.14
+  - certifi=2025.1.31
   - cffi=1.17.1
   - cfitsio=4.4.1
   - charls=2.4.2
@@ -286,6 +286,7 @@ dependencies:
   - libllvm14=14.0.6
   - libllvm19=19.1.4
   - liblzma=5.6.3
+  - liblzma-devel=5.6.3
   - libmatio=1.5.28
   - libnghttp2=1.64.0
   - libnl=3.11.0
@@ -396,7 +397,7 @@ dependencies:
   - openh264=2.5.0
   - openjpeg=2.5.2
   - openslide=4.0.0
-  - openssl=3.4.0
+  - openssl=3.4.1
   - orc=2.0.2
   - overrides=7.7.0
   - packaging=24.2
@@ -541,7 +542,7 @@ dependencies:
   - uri-template=1.3.0
   - uriparser=0.9.8
   - validators=0.34.0
-  - wandb=0.19.5
+  - wandb=0.18.7
   - wayland=1.23.1
   - wayland-protocols=1.37
   - wcwidth=0.2.13
@@ -581,7 +582,9 @@ dependencies:
   - xorg-xorgproto=2024.1
   - xxhash=0.8.2
   - xyzservices=2024.9.0
-  - xz
+  - xz=5.6.3
+  - xz-gpl-tools=5.6.3
+  - xz-tools=5.6.3
   - yaml=0.2.5
   - yarl=1.18.0
   - zarr=2.18.3
@@ -624,7 +627,6 @@ dependencies:
       - pandarallel==1.6.5
       - param==2.1.1
       - pygments==2.18.0
-      - qudida==0.0.4
       - rasterio==1.4.3
       - s3fs==2023.6.0
       - scikit-image==0.24.0
