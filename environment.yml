@@ -606,7 +606,6 @@ dependencies:
       - biothings-client==0.3.1
       - blosc2==2.7.1
       - botocore==1.31.17
-      - cellvit-light==0.0.5
       - click-plugins==1.1.1
       - cligj==0.7.2
       - einops-exts==0.0.4
@@ -642,3 +641,4 @@ dependencies:
       - urllib3==1.26.20
       - xarray==2024.11.0
       - xarray-dataclasses==1.8.0
+      - git+https://github.com/mahmoodlab/HEST.git

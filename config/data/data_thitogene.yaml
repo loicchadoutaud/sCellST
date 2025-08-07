@@ -10,8 +10,9 @@ data:
   filter_cells: true
   normalize: true
   log1p: true
-  scale: false
+  scale: "no_scaling"
   genes:
   embedding_tag: ""
   dataset_handler: "thitogene_visium"
+  use_cell_type: false
   fold:

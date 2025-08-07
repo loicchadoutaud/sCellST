@@ -16,6 +16,7 @@ from tqdm.auto import tqdm
 
 from scellst.dataset.cell_image_dataset import CellH5HESTDataset
 from scellst.module.image_encoder import InstanceEmbedder
+from scellst.utils.img_utils import MacenkoStainNormalization
 
 
 def find_spot_containing_cells_vectorized(
@@ -150,20 +151,27 @@ def save_hdf5(
     return output_fpath
 
 
-def load_eval_transform(stats_path: Path) -> Compose:
+def load_eval_transform(stats_path: Path, target_stain_path: Path | None) -> Compose:
+    # Load data statistics
     with open(stats_path, "r") as f:
         norm_dict = json.load(f)
     mean = norm_dict["mean"]
     std = norm_dict["std"]
+
+    # Prepare transforms
+    transforms = []
+    if target_stain_path is not None:
+        # Assuming MacenkoStainNormalization takes uint8 [0,255] and outputs float [0,255]
+        norm = MacenkoStainNormalization(target_stain_path=target_stain_path)
+        transforms.append(norm)
+    transforms.extend([
+        ToImage(),  # Convert to Tensor, maybe handles HWC to CHW
+        ToDtype(torch.float32, scale=True),  # Scales from [0,255] to [0.0, 1.0] if input is int
+        Normalize(mean=mean, std=std),  # Assumes input is [0.0, 1.0] if mean/std are for that range
+        CenterCrop(size=(48, 48)),
+    ])
     logger.info("Loaded mean/std normalisation.")
-    return Compose(
-        [
-            ToImage(),
-            ToDtype(torch.float32, scale=True),
-            Normalize(mean=mean, std=std),
-            CenterCrop(size=(48, 48)),
-        ]
-    )
+    return Compose(transforms)
 
 
 def post_collate_fn(batch):
@@ -181,7 +189,7 @@ def post_collate_fn(batch):
         batch["label"] = batch["label"].squeeze(0)
     if "barcode" in batch.keys():
         batch["barcode"] = np.stack(batch["barcode"]).flatten()
-    if "spot" in batch.keys():
+    if "spot" in batch.keys() and len(batch["spot"]) > 0:
         batch["spot"] = np.stack(batch["spot"]).flatten()
     return batch
 
@@ -223,8 +231,9 @@ def predict_cell_dataset(
     weights_path: str,
     save_path: str,
     device: str,
+    target_stain_path: Path | None,
     batch_size: int = 2048,
-    num_workers: int = 4,
+    num_workers: int = 0,
 ) -> None:
     logger.info(f"Embedding cells using {model_name} encoder")
     encoder = InstanceEmbedder(model_name, weights_path).to(device)
@@ -239,7 +248,7 @@ def predict_cell_dataset(
     cell_dataset = CellH5HESTDataset(
         dataset_path,
         chunk_size=batch_size,
-        img_transform=load_eval_transform(stats_path),
+        img_transform=load_eval_transform(stats_path, target_stain_path),
     )
     cell_dataloader = torch.utils.data.DataLoader(
         cell_dataset, batch_size=1, shuffle=False, num_workers=num_workers

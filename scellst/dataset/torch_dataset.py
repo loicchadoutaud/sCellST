@@ -6,6 +6,8 @@ import h5py
 import numpy as np
 import torch
 from anndata import AnnData
+from loguru import logger
+from numpy import ndarray
 from scipy import sparse
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -22,12 +24,13 @@ class EmbeddedMilDataset(Dataset):
         data_dir: Path,
     ) -> None:
         super().__init__()
+        logger.info(f"Loading cell embeddings from {adata.uns['cell_embedding_path']}")
         self.cell_embedding_path = adata.uns["cell_embedding_path"]
         assert os.path.exists(
             self.cell_embedding_path
         ), f"Cell embedding file not found: {self.cell_embedding_path}"
         self.ser_map = adata.uns["spot_cell_map"]
-        self.spot_names = adata.obs_names
+        self.obs_names = adata.obs_names
         if isinstance(adata.X, sparse.csr_matrix):
             self.bag_labels = adata.X.toarray()
         else:
@@ -57,7 +60,7 @@ class EmbeddedMilDataset(Dataset):
             self._open_hdf5()
 
         # Get bag and instance index
-        bag_name = self.spot_names[idx]
+        bag_name = self.obs_names[idx]
         idx_instances = self.ser_map[bag_name]
 
         # Get inputs
@@ -90,21 +93,20 @@ class EmbeddedInstanceDataset(Dataset):
     h5_key: str = "embedding"
 
     def __init__(
-        self, cell_embedding_path: Path, idx_to_pred: np.ndarray | None = None
+        self, cell_embedding_path: Path,
+
     ) -> None:
         super().__init__()
+        logger.info(f"Loading cell embeddings from {cell_embedding_path}")
         self.cell_embedding_path = cell_embedding_path
         assert (
             self.cell_embedding_path.exists()
         ), f"Cell embedding file not found: {self.cell_embedding_path}"
-
-        if idx_to_pred is None:
-            with h5py.File(self.cell_embedding_path, "r", swmr=True) as h5file:
-                idx_to_pred = np.arange(
-                    len(h5file["barcode"][:].flatten().astype(str).astype("object"))
-                )
-        self.n_inst = idx_to_pred.shape[0]
-        self.idx_to_pred = idx_to_pred
+        with h5py.File(cell_embedding_path, "r") as f:
+            self.obs_names = f["barcode"][:].astype(str).squeeze()
+            logger.info(f"First obs names: {self.obs_names[:5]}")
+        self.n_inst = len(self.obs_names)
+        logger.info(f"Found n_inst = {self.n_inst} to predict.")
 
     def __len__(self) -> int:
         return self.n_inst
@@ -119,12 +121,12 @@ class EmbeddedInstanceDataset(Dataset):
     def get_instance_inputs(self, idx_instance: int) -> Tensor:
         return torch.from_numpy(self._dataset[idx_instance]).float()
 
-    def __getitem__(self, idx: int) -> dict[str, np.ndarray | torch.Tensor]:
+    def __getitem__(self, idx: int) -> dict[str, ndarray | Tensor]:
         if not hasattr(self, "_dataset"):
             self._open_hdf5()
 
         return {
-            REGISTRY_KEYS.X_KEY: self.get_instance_inputs(self.idx_to_pred[idx]),
+            REGISTRY_KEYS.X_KEY: self.get_instance_inputs(idx),
         }
 
 

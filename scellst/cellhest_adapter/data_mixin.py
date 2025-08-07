@@ -11,6 +11,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 from loguru import logger
+from sklearn.preprocessing import OneHotEncoder
 from tqdm.auto import tqdm
 
 from scellst.cellhest_adapter.cell_utils import (
@@ -18,7 +19,7 @@ from scellst.cellhest_adapter.cell_utils import (
     predict_cell_dataset,
     compute_mean_std,
 )
-from scellst.constant import CLASS_LABELS, REV_CLASS_LABELS, DATA_DIR
+from scellst.constant import CLASS_LABELS, REV_CLASS_LABELS, DATA_DIR, REGISTRY_KEYS
 
 
 class DataMixin:
@@ -51,10 +52,10 @@ class DataMixin:
             name = self.meta["id"]
 
         dst_pixel_size = target_pixel_size
+        src_pixel_size = self.meta["pixel_size_um_estimated"]
+        logger.info(f"Found {src_pixel_size} µm/pixel.")
 
         gdf = self.get_shapes(shape_name, coordinates_name).shapes
-
-        src_pixel_size = self.pixel_size
 
         patch_size_src = target_patch_size * (dst_pixel_size / src_pixel_size)
         coords_center = np.stack([gdf.centroid.x, gdf.centroid.y], axis=1)
@@ -100,12 +101,13 @@ class DataMixin:
             extra_assets["label"] = np.full(len(gdf), -1)[in_slide_mask]
 
         os.makedirs(save_dir, exist_ok=True)
-        h5_path = os.path.join(save_dir, name + ".h5")
+        h5_path = os.path.join(save_dir, f"{name}_{shape_name}.h5")
+        logger.info(f"Saving images in {h5_path}...")
 
         if write_in_tmp_dir:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 logger.info(f"Using temp dir: {tmp_dir}")
-                h5_tmp_path = os.path.join(tmp_dir, name + ".h5")
+                h5_tmp_path = os.path.join(tmp_dir, f"{name}_{shape_name}.h5")
                 patcher.to_h5(
                     h5_tmp_path,
                     extra_assets=extra_assets,
@@ -117,16 +119,18 @@ class DataMixin:
                 extra_assets=extra_assets,
             )
 
+
     def dump_cell_image_stats(
         self,
         cell_img_save_dir: str,
         save_dir: str,
+        shape_name: str = "cellvit",
         name: str | None = None,
     ):
         if name is None:
             name = self.meta["id"]
 
-        h5_path = os.path.join(cell_img_save_dir, name + ".h5")
+        h5_path = os.path.join(cell_img_save_dir, f"{name}_{shape_name}.h5")
         norm_dict = compute_mean_std(h5_path)
 
         os.makedirs(save_dir, exist_ok=True)
@@ -134,12 +138,14 @@ class DataMixin:
         with open(save_path, "w") as f:
             json.dump(norm_dict, f)
 
+
     def dump_cell_embeddings(
         self,
         cell_img_save_dir: str,
         cell_stat_img_save_dir: str,
         normalisation_type: str,
         save_dir: str,
+        shape_name: str = "cellvit",
         name: str | None = None,
         model_name: str = "resnet50",
         weights_path: str = "imagenet",
@@ -150,7 +156,10 @@ class DataMixin:
             name = self.meta["id"]
 
         os.makedirs(save_dir, exist_ok=True)
-        dataset_path = os.path.join(cell_img_save_dir, name + ".h5")
+
+        dataset_path = os.path.join(cell_img_save_dir, f"{name}_{shape_name}.h5")
+        logger.info(f"Loading dataset from {dataset_path}...")
+        target_stain_path = None
         match normalisation_type:
             case "self":
                 stats_path = os.path.join(cell_stat_img_save_dir, name + ".json")
@@ -161,18 +170,28 @@ class DataMixin:
                     )
                 else:
                     stats_path = DATA_DIR / "imagenet_stats.json"
+            case "norm":
+                if "moco" in weights_path:
+                    stats_path = (
+                            Path(weights_path).parent / "moco_model_best_mean_std.json"
+                    )
+                else:
+                    stats_path = DATA_DIR / "imagenet_stats.json"
+                name_train_slide = os.path.split(weights_path)[-2]
+                name_train_slide = name_train_slide.split("-")[1]
+                target_stain_path = DATA_DIR / "rep_stains" / f"rep_{name_train_slide}_{shape_name}.jpg"
             case _:
                 raise ValueError(f"{normalisation_type} should be either train or self")
         logger.info(f"Using {stats_path} for image normalisation.")
 
         assert os.path.exists(dataset_path), f"{dataset_path} does not exist"
-        embedding_path = os.path.join(save_dir, f"{tag}_{name}.h5")
+        embedding_path = os.path.join(save_dir, f"{tag}_{name}_{shape_name}.h5")
         logger.info(f"Saving embeddings to {embedding_path}")
 
         if write_in_tmp_dir:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 logger.info(f"Using temp dir: {tmp_dir}")
-                embedding_tmp_path = os.path.join(tmp_dir, f"{tag}_{name}.h5")
+                embedding_tmp_path = os.path.join(tmp_dir, f"{tag}_{name}_{shape_name}.h5")
                 predict_cell_dataset(
                     dataset_path,
                     stats_path,
@@ -180,6 +199,7 @@ class DataMixin:
                     weights_path,
                     embedding_tmp_path,
                     "cuda" if torch.cuda.is_available() else "cpu",
+                    target_stain_path
                 )
                 shutil.copy(embedding_tmp_path, embedding_path)
         else:
@@ -190,18 +210,46 @@ class DataMixin:
                 weights_path,
                 embedding_path,
                 "cuda" if torch.cuda.is_available() else "cpu",
+                target_stain_path
             )
+
+    def dump_cell_one_hot(
+        self,
+        cell_emb_dir: str,
+        tag: str,
+        shape_name: str = "cellvit",
+    ) -> None:
+        name = self.meta["id"]
+
+        # Prepare paths
+        embedding_path = os.path.join(cell_emb_dir, f"{tag}_{name}_{shape_name}.h5")
+        assert os.path.exists(embedding_path), f"{embedding_path} does not exist"
+        h5_path = os.path.join(cell_emb_dir, f"one-hot-celltype_{name}_{shape_name}.h5")
+        logger.info(f"Saving one-hot-encoded celltypes to {h5_path}")
+
+        # Copy dataset
+        shutil.copyfile(embedding_path, h5_path)
+
+        # Modify files
+        with h5py.File(h5_path, "r+") as h5file:
+            labels = h5file["label"][:]
+            categories = np.sort(np.asarray(list(CLASS_LABELS.values())))
+            one_hot = OneHotEncoder(sparse_output=False, categories=[categories]).fit_transform(labels)
+            del h5file["embedding"]
+            h5file.create_dataset("embedding", data=one_hot.astype(np.int8))
+
 
     def get_embeddings(
         self,
         cell_emb_dir: str,
         tag: str,
+        shape_name: str = "cellvit",
         n_cell_max: int = 100_000,
         batch_loading_size: int = 10_000,
     ) -> AnnData:
         name = self.meta["id"]
 
-        embedding_path = os.path.join(cell_emb_dir, f"{tag}_{name}.h5")
+        embedding_path = os.path.join(cell_emb_dir, f"{tag}_{name}_{shape_name}.h5")
         assert os.path.exists(embedding_path), f"{embedding_path} does not exist"
 
         with h5py.File(embedding_path, mode="r") as h5file:

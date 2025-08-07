@@ -44,21 +44,6 @@ def compute_common_heg(adata: ad.AnnData, n_top_genes: int, batch_key: str) -> A
 def compute_common_hvg(
     adata: ad.AnnData, n_top_genes: int, batch_key: str
 ) -> ad.AnnData:
-    """
-    Compute common highly variable genes across batches and select top n_top_genes based on
-    the number of times a gene is selected as HVG.
-
-    Parameters:
-        adata: AnnData
-            Input AnnData object with `batch_key` in `adata.obs`.
-        n_top_genes: int
-            Number of top genes to select.
-        batch_key: str
-            Column in `adata.obs` indicating batch labels.
-
-    Returns:
-        ad.AnnData: A new AnnData object with only the selected HVG genes.
-    """
     sc.pp.highly_variable_genes(
         adata,
         n_top_genes=n_top_genes,
@@ -87,6 +72,7 @@ def prepare_list_hvg(
                 normalize=True,
                 log1p=True,
                 embedding_path=None,
+                shape_name=None,
             )
         )
     adata = ad.concat(list_adata, join="inner", index_unique="_", label="batch")
@@ -95,7 +81,9 @@ def prepare_list_hvg(
     adata = compute_common_hvg(adata, n_top_genes=n_genes, batch_key="batch")
 
     # Save results
-    pd.Series(adata.var_names, name="gene").sort_values().to_csv(
+    df = adata.var[["highly_variable_rank"]]
+    df = df.reset_index(names="gene")
+    df.to_csv(
         DATA_DIR / f"genes_{organ}_{n_genes}_hvg_bench.csv"
     )
     logger.info("End of gene selection without errors.")

@@ -2,16 +2,18 @@ import os
 import shutil
 import tempfile
 import time
+from pathlib import Path
 
-import anndata as ad
-import h5py
 import numpy as np
 import pandas as pd
+from anndata import AnnData
+from dask.dataframe import from_pandas
 from loguru import logger
-from scipy.sparse import coo_matrix, csr_matrix
+import scanpy as sc
 
-
+from scellst.cellhest_adapter.aggregation import count_transcripts
 from scellst.cellhest_adapter.data_mixin import DataMixin
+from scellst.cellhest_adapter.h5_utils import subset_h5files
 from scellst.cellhest_adapter.plot_mixin import PlotMixin
 from hest import (
     HESTData,
@@ -43,7 +45,7 @@ class CellXeniumHESTData(DataMixin, PlotMixin, XeniumHESTData):
         )
         t1 = time.time()
         transcript_df = pd.read_parquet(
-            transcripts_path, columns=["cell_id", "feature_name", "qv"]
+            transcripts_path, columns=["cell_id", "feature_name", "qv", "he_x", "he_y"]
         )
         t2 = time.time()
         logger.info(f"Reading transcripts took {t2 - t1:.2f} seconds")
@@ -57,26 +59,22 @@ class CellXeniumHESTData(DataMixin, PlotMixin, XeniumHESTData):
             transcript_df=transcript_df,
         )
 
-    def dump_cell_genes(
+    def _get_true_pixel_size(self) -> float:
+        return self.meta.get("pixel_size", self.pixel_size)
+
+    def _create_count_matrix(
         self,
-        cell_save_dir: str,
-        save_dir: str,
-        name: str | None = None,
-        write_in_tmp_dir: bool = False,
-    ):
-        if name is None:
-            name = self.meta["id"]
-
-        # Load cell barcode
-        cell_image_path = os.path.join(cell_save_dir, name + ".h5")
-        assert os.path.exists(
-            cell_image_path
-        ), f"Cell image file not found: {cell_image_path}"
-        with h5py.File(cell_image_path, "r") as f:
-            cell_ids = f["barcode"][:].flatten().astype(str).astype("object")
-
-        # Get cell gene expression
+        shape_name: str,
+        value_key: str = "feature_name",
+        coordinates_name: str = "he",
+    ) -> AnnData:
+        # Get cell transcripts
         df = self.transcript_df[self.transcript_df["cell_id"] != "UNASSIGNED"].copy()
+        df = df[
+            ~df["feature_name"]
+            .astype(str)
+            .str.startswith(("NegControlProbe", "antisense", "BLANK"))
+        ]
 
         # Filter low quality transcripts
         n_transcripts = len(df)
@@ -85,104 +83,176 @@ class CellXeniumHESTData(DataMixin, PlotMixin, XeniumHESTData):
         logger.info(
             f"Kept {n_final_transcripts / n_transcripts * 100: .3f}% high quality transcripts"
         )
-        logger.info(f"Kept {len(df['cell_id'].unique())} / {len(cell_ids)} cells")
 
-        df.sort_values(by=["cell_id", "feature_name"], inplace=True)
-        long_count_matrix = (
-            df.groupby(by=["cell_id", "feature_name"]).size().reset_index(name="counts")
-        )
+        # Get cell / nucleus geodataframe
+        logger.info(f"Using {shape_name} shape")
+        gdf = self.get_shapes(shape_name, coordinates_name).shapes
 
-        # Map identifiers to unique indices
-        cell_id_to_index = {
-            cell_id: idx
-            for idx, cell_id in enumerate(long_count_matrix["cell_id"].unique())
-        }
-        feature_name_to_index = {
-            feature_name: idx
-            for idx, feature_name in enumerate(
-                long_count_matrix["feature_name"].unique()
-            )
-        }
+        # Count transcripts
+        dd = from_pandas(df)
 
-        # Create sparse matrix
-        row = long_count_matrix["cell_id"].map(cell_id_to_index).values
-        col = long_count_matrix["feature_name"].map(feature_name_to_index).values
-        data = long_count_matrix["counts"].values
-        sparse_matrix = coo_matrix(
-            (data, (row, col)),
-            shape=(len(cell_id_to_index), len(feature_name_to_index)),
-        )
+        # Cell expression matrix
+        adata = count_transcripts(gdf, dd, value_key)
 
-        # Convert sparse matrix to CSR format (preferred for AnnData)
-        sparse_matrix = sparse_matrix.tocsr()
+        logger.info(f"Initial adata object {adata}")
+        return adata
 
-        # Create AnnData object
-        adata = ad.AnnData(
-            X=sparse_matrix,  # Gene expression data
-            obs=pd.DataFrame(index=list(cell_id_to_index.keys())),  # Cell metadata
-            var=pd.DataFrame(index=list(feature_name_to_index.keys())),  # Gene metadata
-        )
-
-        # Make sure to match image/embedding data
-        cell_id_set = set(cell_ids)  # All desired cell IDs
-        current_cell_ids = set(adata.obs_names)  # Existing cell IDs in adata
-        missing_cell_ids = cell_id_set - current_cell_ids  # Find missing IDs
-
-        # Log the details
-        logger.info(
-            f"Found {len(current_cell_ids & cell_id_set)} / {len(cell_id_set)} cells present in the dataset."
-        )
-        logger.info(
-            f"{len(missing_cell_ids)} cells are missing and will be added with zero expression."
-        )
-
-        # Add missing cells with zero expression
-        if missing_cell_ids:
-            # Create a zero matrix for missing cells
-            n_genes = adata.shape[1]  # Number of genes (columns)
-            zero_matrix = csr_matrix(
-                (len(missing_cell_ids), n_genes)
-            )  # Sparse matrix of zeros
-
-            # Create `obs` DataFrame for missing cells
-            missing_obs = pd.DataFrame(
-                index=list(missing_cell_ids)
-            )  # Minimal metadata for missing cells
-
-            # Combine existing AnnData with the new cells
-            adata_missing = ad.AnnData(
-                X=zero_matrix, obs=missing_obs, var=adata.var.copy()
-            )
-            adata = ad.concat([adata, adata_missing], axis=0, merge="same")
-
-        # Reindex to keep only cells in `cell_ids` (order preserved)
-        adata = adata[cell_ids].copy()
-        logger.info(
-            f"Final dataset contains {adata.shape[0]} cells and {adata.shape[1]} genes."
-        )
+    def _add_cell_seg_info(
+        self,
+        adata: AnnData,
+        shape_name: str,
+        coordinates_name: str = "he",
+    ) -> AnnData:
+        gdf = self.get_shapes(shape_name, coordinates_name).shapes
+        gdf.index = gdf.index.astype(str)
+        common_cell_idx = list(set(adata.obs_names).intersection(gdf.index))
+        common_cell_idx.sort()
+        logger.info(f"Found {len(common_cell_idx)} / {len(gdf.index)} in nuc gdf.")
+        logger.info(f"Found {len(common_cell_idx)} / {len(adata)} in adata.")
+        adata = adata[common_cell_idx].copy()
+        gdf = gdf.loc[common_cell_idx]
 
         # Add spatial coordinates
-        gdf = self.get_shapes("xenium_nucleus", "he").shapes
-        gdf.index = gdf.index.astype(str)
-        gdf = gdf.loc[adata.obs_names]
-        adata.obsm["spatial"] = np.stack(
-            [gdf.centroid.x, gdf.centroid.y], axis=1
-        ).astype(int)
+        coords_center = np.stack([gdf.centroid.x, gdf.centroid.y], axis=1)
+        adata.obsm["spatial"] = coords_center
 
-        # Add downsampled image
-        register_downscale_img(adata, self.wsi, self.pixel_size)
+        return adata
+
+    def dump_cell_exp_matrix(
+        self,
+        save_dir: Path,
+        shape_name: str,
+        name: str | None = None,
+    ):
+        """Dump H&E patches centered around cells to a .h5 file.
+
+            Patches are computed such that:
+             - each cell is rescaled to `target_pixel_size` um/px
+             - a crop of `target_patch_size`x`target_patch_size` pixels around each segmented cell is derived (from cellVIT segmentation).
+
+        Args:
+            save_dir (str): directory where the .h5 cell file will be saved
+            name (str, optional): file will be saved as {name}.h5. Defaults to 'cell'.
+            target_patch_size (int, optional): target cell size in pixels (after scaling to match `target_pixel_size`). Defaults to 48.
+            target_pixel_size (float, optional): target patch pixel size in um/px. Defaults to 0.25.
+            shape_name (str, optional): name of the shape. Defaults to 'cellvit'.
+            coordinates_name (str, optional): name of the coordinates. Defaults to 'he'.
+            verbose (int, optional): verbosity level. Defaults to 0.
+        """
+        if name is None:
+            name = self.meta["id"]
+
+        # Get cell expression
+        cell_adata = self._create_count_matrix(shape_name)
+
+        # Add cell seg stats
+        cell_adata = self._add_cell_seg_info(cell_adata, shape_name)
+
+        # Add downscaled image
+        register_downscale_img(cell_adata, self.wsi, self._get_true_pixel_size())
+
+        # Store pixel_size
+        cell_adata.uns["pixel_size"] = self._get_true_pixel_size()
 
         # Inspect the AnnData object
-        logger.info(adata)
+        logger.info(f"Final adata object {cell_adata}")
 
         # Save the AnnData object
-        os.makedirs(save_dir, exist_ok=True)
+        save_dir.mkdir(parents=True, exist_ok=True)
+        save_path = save_dir / f"{name}_{shape_name}.h5ad"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".h5ad") as tmp_file:
+            tmp_path = tmp_file.name
+        try:
+            cell_adata.write_h5ad(tmp_path)
+            shutil.move(tmp_path, save_path)
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
+
+    def dump_cell_images_dataset(
+        self,
+        save_dir: Path,
+        adata_dir: Path,
+        shape_name: str,
+        target_patch_size: int = 72,
+        target_pixel_size: float = 0.25,
+        name: str | None = None,
+        write_in_tmp_dir: bool = False,
+    ):
+        """Dump H&E patches centered around cells to a .h5 file.
+
+            Patches are computed such that:
+             - each cell is rescaled to `target_pixel_size` um/px
+             - a crop of `target_patch_size`x`target_patch_size` pixels around each segmented cell is derived (from cellVIT segmentation).
+
+        Args:
+            save_dir (Path): directory where the .h5 cell file will be saved
+            name (str, optional): file will be saved as {name}.h5. Defaults to 'cell'.
+            target_patch_size (int, optional): target cell size in pixels (after scaling to match `target_pixel_size`). Defaults to 48.
+            target_pixel_size (float, optional): target patch pixel size in um/px. Defaults to 0.25.
+            shape_name (str, optional): name of the shape. Defaults to 'cellvit'.
+            coordinates_name (str, optional): name of the coordinates. Defaults to 'he'.
+            verbose (int, optional): verbosity level. Defaults to 0.
+        """
+        logger.info("Saving cell images...")
+
+        logger.info(f"Using destination pixel size: {target_pixel_size} um/px for patch size: {target_patch_size}.")
+        if name is None:
+            name = self.meta["id"]
+
+        # Get cell geodataframe
+        adata = sc.read_h5ad(adata_dir / f"{name}_{shape_name}.h5ad", backed="r")
+
+        # Prepare image coordinates
+        src_pixel_size = self.meta["pixel_size_um_estimated"]
+        patch_size_src = target_patch_size * (target_pixel_size / src_pixel_size)
+        logger.info(f"Found {src_pixel_size} µm/pixel, patch size {patch_size_src}.")
+        coords_center = adata.obsm["spatial"].copy()
+        coords_topleft = coords_center - patch_size_src // 2
+        coords_topleft = np.round(coords_topleft).astype(int)
+
+        # Filter cells outside of slide
+        in_slide_mask = (
+            (0 <= coords_topleft[:, 0] + patch_size_src)
+            & (coords_topleft[:, 0] < self.wsi.width)
+            & (0 <= coords_topleft[:, 1] + patch_size_src)
+            & (coords_topleft[:, 1] < self.wsi.height)
+        )
+        if in_slide_mask.sum() < len(in_slide_mask):
+            logger.info(
+                f"Some cells {len(in_slide_mask) - in_slide_mask.sum()} are outside the slide, rewrite filtered adata"
+            )
+        adata = adata[in_slide_mask]
+        cell_barcodes = adata.obs_names.tolist()
+        coords_topleft = coords_topleft[in_slide_mask]
+        coords_topleft = np.array(coords_topleft).astype(int)
+
+        # Create patcher
+        patcher = self.wsi.create_patcher(
+            target_patch_size,
+            src_pixel_size,
+            target_pixel_size,
+            custom_coords=coords_topleft,
+        )
+
+        extra_assets = {"barcode": cell_barcodes}
+        save_dir.mkdir(parents=True, exist_ok=True)
+        h5_path = save_dir / f"{name}_{shape_name}.h5"
+
+        logger.info(f"Extracting {len(coords_topleft)} cell images...")
+
         if write_in_tmp_dir:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 logger.info(f"Using temp dir: {tmp_dir}")
-                tmp_path = os.path.join(tmp_dir, name + ".h5ad")
-                adata.write_h5ad(tmp_path)
-                shutil.copy(tmp_path, save_dir)
+                h5_tmp_path = os.path.join(tmp_dir, f"{name}_{shape_name}.h5")
+                patcher.to_h5(
+                    h5_tmp_path,
+                    extra_assets=extra_assets,
+                )
+                shutil.copy(h5_tmp_path, save_dir)
         else:
-            save_path = os.path.join(save_dir, name + ".h5ad")
-            adata.write_h5ad(save_path)
+            patcher.to_h5(
+                str(h5_path),
+                extra_assets=extra_assets,
+            )

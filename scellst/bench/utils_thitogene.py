@@ -16,8 +16,8 @@ from omegaconf import OmegaConf
 
 from scellst.constant import MODELS_DIR, METRICS_DIR
 from scellst.dataset.data_module import prepare_data_module
-from scellst.io_utils import load_config, load_yaml
-from scellst.utils import update_config, create_tag
+from scellst.utils.io_utils import load_config, load_yaml
+from scellst.utils.utils import update_config, create_tag
 from scellst.metrics.gene import compute_gene_metrics
 from external.THItoGene.vis_model import THItoGene
 from external.THItoGene.predict import model_predict
@@ -88,6 +88,7 @@ def eval_thitogene(config_dir: Path, config_kwargs: dict) -> None:
     config = load_yaml(config_dir / "config.yaml")
     config = update_config(config, config_kwargs)
     config.data.genes = config.model.gene_names
+    config.data.shape_name = "cellvit"
 
     # Set seed
     seed_everything(config.data.seed)

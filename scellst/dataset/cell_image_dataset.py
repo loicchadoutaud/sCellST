@@ -25,7 +25,10 @@ class CellH5HESTDataset(Dataset):
             imgs = f["img"][start_idx:end_idx]
             barcodes = f["barcode"][start_idx:end_idx].flatten().tolist()
             coords = f["coords"][start_idx:end_idx]
-            spots = f["spot"][start_idx:end_idx].flatten().tolist()
+            if "spot" in f.keys():
+                spots = f["spot"][start_idx:end_idx].flatten().tolist()
+            else:
+                spots = []
             if "label" in f.keys():
                 labels = f["label"][start_idx:end_idx].flatten()
             else:
@@ -33,7 +36,7 @@ class CellH5HESTDataset(Dataset):
 
         if self.img_transform:
             imgs = torch.stack(
-                [self.img_transform(Image.fromarray(img)) for img in imgs]
+                [self.img_transform(img) for img in imgs]
             )
 
         output_dict = {

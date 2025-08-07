@@ -1,9 +1,12 @@
+import os
 from pathlib import Path
 
 import pandas as pd
 from loguru import logger
 
+from hest import iter_hest
 from scellst.bench.data_formatting import download_and_prepare_data, process_hest_data
+from scellst.cellhest_adapter.cell_hest_data import CellHESTData
 from scellst.cellhest_adapter.processing_utils import (
     filter_data,
     fetch_data,
@@ -12,12 +15,12 @@ from scellst.cellhest_adapter.processing_utils import (
     save_gene_names,
     remove_dataset,
 )
-from scellst.dataset.embedding_utils import encode_all_slides
-from scellst.utils import run_moco_script
+from scellst.constant import MODELS_DIR, CELL_IMG_DIR, CELL_IMG_STAT_DIR, CELL_EMB_DIR
+from scellst.utils.utils import run_moco_script
 
 
 def download_data(
-    path_dataset: Path, organ: str | None = None, ids_to_query: list[str] | None = None, with_plot: bool = False
+    path_dataset: Path, organ: str | None = None, ids_to_query: list[str] | None = None , shape_name: str = "cellvit"
 ) -> None:
     assert (organ is not None) ^ (
         ids_to_query is not None
@@ -34,9 +37,8 @@ def download_data(
         logger.info(f"Working with selected {ids_to_query} slides from {organ}...")
     technology = df["st_technology"].tolist()
     fetch_data(str(path_dataset), ids_to_query)
-    convert_to_cellst(path_dataset, ids_to_query, technology)
-    if with_plot:
-        plot_cellst(path_dataset, ids_to_query, technology)
+    convert_to_cellst(path_dataset, ids_to_query, technology, shape_name)
+    plot_cellst(path_dataset, ids_to_query, technology, shape_name)
     if "xenium" in technology:
         save_gene_names(path_dataset, ids_to_query, technology, organ)
 
@@ -63,7 +65,7 @@ def run_ssl(
     if ids_to_query:
         logger.info(f"Working with preselected {ids_to_query} slides...")
     else:
-        df = pd.read_csv("data/HEST_v1_1_0.csv")
+        df = pd.read_csv("external/HEST/assets/HEST_v1_1_0.csv")
         df = filter_data(df, organ)
         ids_to_query = df["id"].tolist()
         logger.info(f"Working with selected {ids_to_query} slides from {organ}...")
@@ -83,43 +85,52 @@ def embed_cells(
     tag: str,
     model_name: str,
     normalisation_type: str,
+    shape_name: str = "cellvit",
 ) -> None:
+    # Load slide ids to embed
     assert (organ is not None) ^ (
         ids_to_query is not None
     ), f"Only one should not be none, got: organ={organ} and ids_to_query={ids_to_query}"
     if ids_to_query:
         logger.info(f"Working with preselected {ids_to_query} slides...")
     else:
-        df = pd.read_csv("data/HEST_v1_1_0.csv")
+        df = pd.read_csv("external/HEST/assets/HEST_v1_1_0.csv")
         df = filter_data(df, organ)
         ids_to_query = df["id"].tolist()
         logger.info(f"Working with selected {ids_to_query} slides from {organ}...")
-    encode_all_slides(
-        path_dataset,
-        ids_to_query,
-        tag,
-        model_name=model_name,
-        normalisation_type=normalisation_type,
-    )
 
+    for i, st in enumerate(
+            iter_hest(
+                hest_dir=str(path_dataset), id_list=ids_to_query, load_transcripts=False
+            )
+    ):
+        logger.info(f"Encoding {ids_to_query[i]}...")
+        cst = CellHESTData.from_HESTData(st)
+        if not "imagenet" in tag:
+            weight_path = os.path.join(MODELS_DIR / "ssl", tag, "moco_model_best.pth.tar")
+        else:
+            weight_path = tag
+        cst.dump_cell_embeddings(
+            cell_img_save_dir=path_dataset / CELL_IMG_DIR,
+            cell_stat_img_save_dir=path_dataset / CELL_IMG_STAT_DIR,
+            normalisation_type=normalisation_type,
+            save_dir=path_dataset / CELL_EMB_DIR,
+            shape_name=shape_name,
+            model_name=model_name,
+            weights_path=weight_path,
+            tag= f"{tag}_{normalisation_type}",
+            write_in_tmp_dir=True,
+        )
+        if "imagenet" in tag:
+            cst.dump_cell_one_hot(
+                cell_emb_dir=path_dataset / CELL_EMB_DIR,
+                tag=f"{tag}_{normalisation_type}",
+            )
 
-def download_and_prepare_pdac(
-    data_id: str, base_url: str, interim_dir: str, output_dir: str
-) -> None:
-    download_and_prepare_data(
-        data_id=data_id,
-        base_url=base_url,
-        output_dir=interim_dir,
-    )
-    process_hest_data(
-        data_path=interim_dir,
-        data_id=data_id,
-        output_dir=output_dir,
-        segmenter_name="cellvit",
-    )
 
 
 if __name__ == "__main__":
     download_data(
-        path_dataset=Path("hest_data"), organ="Ovary", ids_to_query=["TENX39", "TENX65"]
+        # path_dataset=Path("hest_data"), ids_to_query=["TENX62", "TENX90", "TENX70", "TENX72"]
+        path_dataset=Path("hest_data"), ids_to_query=["TENX65"]
     )

@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
 
 import scanpy as sc
 import torch
@@ -12,13 +11,14 @@ from scellst.dataset.torch_dataset import EmbeddedInstanceDataset, EmbeddedMilDa
 
 
 class BaseHandler(ABC):
-    def load_data(self, data_dir: Path, id: str) -> AnnData:
-        adata_path = self.get_adata_path(data_dir, id)
+    def load_data(self, data_dir: Path, id: str, shape_name: str) -> AnnData:
+        adata_path = self.get_adata_path(data_dir, id, shape_name)
         assert adata_path.exists(), f"File {adata_path} does not exist."
         adata = sc.read_h5ad(adata_path)
         adata.obs_names = [name + f"_{id}" for name in adata.obs_names]
         adata.uns["hest_id"] = id
         logger.info(f"Loaded adata with shape: {adata.shape}")
+        logger.info(f"First obs names: {adata.obs_names[:5]}")
         return adata
 
     def preprocess_data(
@@ -59,7 +59,7 @@ class BaseHandler(ABC):
         pass
 
     @abstractmethod
-    def get_adata_path(self, data_dir: Path, id: str) -> Path:
+    def get_adata_path(self, data_dir: Path, id: str, shape_name: str) -> Path:
         pass
 
     @abstractmethod
@@ -84,22 +84,25 @@ class BaseHandler(ABC):
         normalize: bool,
         log1p: bool,
         embedding_path: Path,
+        shape_name: str,
     ) -> AnnData:
         pass
 
 
 class VisiumHandler(BaseHandler):
+    dataset_cls: type
+
     def create_dataset(
-        self, adata: AnnData, embedding_path: str
+        self, adata: AnnData, embedding_path: Path
     ) -> torch.utils.data.Dataset:
-        pass
+        return self.dataset_cls(adata, embedding_path)
 
     def create_inference_dataset(
         self, embedding_path: Path
     ) -> torch.utils.data.Dataset:
         return EmbeddedInstanceDataset(embedding_path)
 
-    def get_adata_path(self, data_dir: Path, id: str) -> Path:
+    def get_adata_path(self, data_dir: Path, id: str, shape_name: str) -> Path:
         return data_dir / "st" / f"{id}.h5ad"
 
     def filter_genes(self, adata: AnnData) -> AnnData:
@@ -122,9 +125,10 @@ class VisiumHandler(BaseHandler):
         normalize: bool,
         log1p: bool,
         embedding_path: Path,
+        shape_name: str,
     ) -> AnnData:
         logger.info(f"Loading data for ID: {id}")
-        adata = self.load_data(data_dir, id)
+        adata = self.load_data(data_dir, id, shape_name)
         adata = self.preprocess_data(
             adata, filter_genes, filter_cells, normalize, log1p
         )
@@ -133,6 +137,8 @@ class VisiumHandler(BaseHandler):
 
 
 class MilVisiumHandler(VisiumHandler):
+    dataset_cls = EmbeddedMilDataset
+
     def create_spot_cell_map(self, adata: AnnData) -> AnnData:
         # Create spot cell map
         ser_map = create_spot_cell_map(adata.uns["cell_embedding_path"])
@@ -163,9 +169,10 @@ class MilVisiumHandler(VisiumHandler):
         normalize: bool,
         log1p: bool,
         embedding_path: Path,
+        shape_name: str,
     ) -> AnnData:
         logger.info(f"Loading data for ID: {id}")
-        adata = self.load_data(data_dir, id)
+        adata = self.load_data(data_dir, id, shape_name)
         adata = self.preprocess_data(
             adata, filter_genes, filter_cells, normalize, log1p
         )
@@ -174,13 +181,11 @@ class MilVisiumHandler(VisiumHandler):
         logger.info("Preprocessing completed.")
         return adata
 
-    def create_dataset(self, adata: Any, data_dir: Path) -> torch.utils.data.Dataset:
-        return EmbeddedMilDataset(adata, data_dir)
-
 
 class XeniumHandler(BaseHandler):
-    def get_adata_path(self, data_dir: Path, id: str) -> Path:
-        return data_dir / "cell_genes" / f"{id}.h5ad"
+    def get_adata_path(self, data_dir: Path, id: str, shape_name: str,
+) -> Path:
+        return data_dir / "cell_genes" / f"{id}_{shape_name}.h5ad"
 
     def create_dataset(
         self, adata: AnnData, embedding_path: str
@@ -193,11 +198,10 @@ class XeniumHandler(BaseHandler):
         return EmbeddedInstanceDataset(embedding_path)
 
     def filter_genes(self, adata: AnnData) -> AnnData:
-        sc.pp.filter_genes(adata, min_cells=5)
-        logger.info(f"After genes filtering: {adata.shape}")
         return adata
 
     def filter_cells(self, adata: AnnData) -> AnnData:
+        sc.pp.filter_cells(adata, min_counts=1)
         return adata
 
     def load_and_preprocess_data(
@@ -209,11 +213,12 @@ class XeniumHandler(BaseHandler):
         normalize: bool,
         log1p: bool,
         embedding_path: Path,
+        shape_name: str,
     ) -> AnnData:
         logger.info(f"Loading data for ID: {id}")
-        adata = self.load_data(data_dir, id)
+        adata = self.load_data(data_dir, id, shape_name)
         adata = self.preprocess_data(
-            adata, filter_genes, filter_cells, normalize, log1p
+            adata, filter_genes, filter_cells, False, log1p
         )
         adata.uns["cell_embedding_path"] = embedding_path
         logger.info("Preprocessing completed.")

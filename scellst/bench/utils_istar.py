@@ -22,9 +22,9 @@ from torch.utils.data import DataLoader
 
 from scellst.constant import METRICS_DIR, MODELS_DIR
 from scellst.dataset.data_module import prepare_data_module
-from scellst.io_utils import load_yaml, load_config
+from scellst.utils.io_utils import load_yaml, load_config
 from scellst.metrics.gene import compute_gene_metrics
-from scellst.utils import update_config, create_tag
+from scellst.utils.utils import update_config, create_tag
 
 from external.istar.impute import get_data, SpotDataset, ForwardSumModel
 from external.istar.utils import read_string
@@ -301,6 +301,7 @@ def eval_istar(
     config = load_yaml(config_dir / "config.yaml")
     config = update_config(config, config_kwargs)
     config.data.genes = config.model.gene_names
+    config.data.shape_name = "cellvit"
 
     # Set seed
     seed_everything(config.data.seed)

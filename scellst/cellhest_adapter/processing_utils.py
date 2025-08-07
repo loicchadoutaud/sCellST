@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import datasets
-import numpy as np
 import pandas as pd
 from loguru import logger
 
@@ -16,7 +15,7 @@ from scellst.constant import (
 from scellst.dataset.data_handler import XeniumHandler
 
 
-from hest import iter_hest, HESTData
+from hest import iter_hest, HESTData, LazyShapes
 
 
 def filter_data(df: pd.DataFrame, organ: str) -> pd.DataFrame:
@@ -28,6 +27,22 @@ def filter_data(df: pd.DataFrame, organ: str) -> pd.DataFrame:
     ]
     df = df[df["organ"] == organ]
     return df
+
+
+def add_hoverfast_preprocessing(st: HESTData, path_dataset: Path) -> None:
+    hoverfast_seg_path = path_dataset / "hoverfast_seg" / (st.meta["id"] + ".geojson")
+    if hoverfast_seg_path.exists():
+        logger.info("Found hoverast segmentation file")
+        st.shapes.append(LazyShapes(str(hoverfast_seg_path), 'hoverfast', 'he'))
+        perform_visium_processing(st, path_dataset, shape_name="hoverfast")
+
+
+def add_hoverfast_plots(st: HESTData, path_dataset: Path) -> None:
+    hoverfast_seg_path = path_dataset / "hoverfast_seg" / (st.meta["id"] + ".geojson")
+    if hoverfast_seg_path.exists():
+        logger.info("Found hoverast segmentation file")
+        st.shapes.append(LazyShapes(str(hoverfast_seg_path), 'hoverfast', 'he'))
+        plot_visium(st, path_dataset, shape_name="hoverfast")
 
 
 def load_gene_names(dataset_path: Path, id: str) -> list[str]:
@@ -46,86 +61,102 @@ def fetch_data(path_dataset: str, ids_to_query: pd.Series) -> None:
     logger.info("Download done.")
 
 
-def perform_visium_processing(st: HESTData, dataset_path: Path) -> None:
+def perform_visium_processing(st: HESTData, dataset_path: Path, shape_name: str = "cellvit") -> None:
     cst = CellHESTData.from_HESTData(st)
-    cst.dump_cell_images(save_dir=dataset_path / CELL_IMG_DIR, write_in_tmp_dir=True)
+    cst.dump_cell_images(save_dir=dataset_path / CELL_IMG_DIR, write_in_tmp_dir=True, shape_name=shape_name)
     cst.dump_cell_image_stats(
         cell_img_save_dir=dataset_path / CELL_IMG_DIR,
         save_dir=dataset_path / CELL_IMG_STAT_DIR,
+        shape_name=shape_name,
     )
 
 
-def perform_xenium_processing(st: HESTData, dataset_path: Path) -> None:
-    cst = CellXeniumHESTData.from_XeniumHESTData(dataset_path, st)
-    cst.dump_cell_images(
+def perform_xenium_processing(st: HESTData, dataset_path: Path, shape_name: str) -> None:
+    cst = CellXeniumHESTData.from_XeniumHESTData(str(dataset_path), st)
+    logger.info(cst)
+    cst.dump_cell_exp_matrix(
+        save_dir=dataset_path / CELL_GENE_DIR, shape_name=shape_name
+    )
+    cst.dump_cell_images_dataset(
         save_dir=dataset_path / CELL_IMG_DIR,
-        shape_name="xenium_nucleus",
+        adata_dir=dataset_path / CELL_GENE_DIR,
+        shape_name=shape_name,
         write_in_tmp_dir=True,
     )
     cst.dump_cell_image_stats(
         cell_img_save_dir=dataset_path / CELL_IMG_DIR,
         save_dir=dataset_path / CELL_IMG_STAT_DIR,
     )
-    cst.dump_cell_genes(
-        cell_save_dir=dataset_path / CELL_IMG_DIR,
-        save_dir=dataset_path / CELL_GENE_DIR,
-        write_in_tmp_dir=True,
-    )
 
 
-def plot_visium(st: HESTData, dataset_path: Path) -> None:
+def plot_visium(st: HESTData, dataset_path: Path, shape_name: str) -> None:
     cst = CellHESTData.from_HESTData(st)
-    cst.plot_cell_class_gallery(
-        cell_img_save_dir=dataset_path / CELL_IMG_DIR,
-        save_dir=dataset_path / CELL_PLOT_DIR,
-    )
+    # cst.plot_cell_class_gallery(
+    #     cell_img_save_dir=dataset_path / CELL_IMG_DIR,
+    #     save_dir=dataset_path / CELL_PLOT_DIR,
+    #     shape_name=shape_name,
+    # )
     cst.plot_cell_random_gallery(
         cell_img_save_dir=dataset_path / CELL_IMG_DIR,
         save_dir=dataset_path / CELL_PLOT_DIR,
+        shape_name=shape_name,
     )
-    cst.plot_cell_visualisation(save_dir=dataset_path / CELL_PLOT_DIR)
-    cst.plot_spots_with_number_of_cells(
+    # cst.plot_cell_visualisation(
+    #     save_dir=dataset_path / CELL_PLOT_DIR,
+    #     shape_name=shape_name,
+    # )
+    # cst.plot_spots_with_number_of_cells(
+    #     cell_img_save_dir=dataset_path / CELL_IMG_DIR,
+    #     save_dir=dataset_path / CELL_PLOT_DIR,
+    #     shape_name=shape_name,
+    # )
+    cst.plot_hist_number_of_cells(
         cell_img_save_dir=dataset_path / CELL_IMG_DIR,
         save_dir=dataset_path / CELL_PLOT_DIR,
+        shape_name=shape_name,
     )
-    for spot_index in np.arange(0, 5):
-        cst.plot_spot_and_cell(
-            cell_img_save_dir=dataset_path / CELL_IMG_DIR,
-            save_dir=dataset_path / CELL_PLOT_DIR,
-            spot_idx=spot_index,
-        )
+    # for spot_index in np.arange(0, 5):
+    #     cst.plot_spot_and_cell(
+    #         cell_img_save_dir=dataset_path / CELL_IMG_DIR,
+    #         save_dir=dataset_path / CELL_PLOT_DIR,
+    #         spot_idx=spot_index,
+    #         shape_name=shape_name,
+    #     )
 
 
-def plot_xenium(st: HESTData, dataset_path: Path) -> None:
+def plot_xenium(st: HESTData, dataset_path: Path, shape_name: str = "xenium_nucleus") -> None:
     cst = CellXeniumHESTData.from_XeniumHESTData(dataset_path, st)
     cst.plot_cell_random_gallery(
         cell_img_save_dir=dataset_path / CELL_IMG_DIR,
         save_dir=dataset_path / CELL_PLOT_DIR,
+        shape_name=shape_name
     )
 
 
 def convert_to_cellst(
-    path_dataset: Path, ids_to_query: list[str], technology: list[str]
+    path_dataset: Path, ids_to_query: list[str], technology: list[str], shape_name: str
 ) -> None:
     for i, st in enumerate(
         iter_hest(
             hest_dir=str(path_dataset), id_list=ids_to_query, load_transcripts=False
         )
     ):
+        if ids_to_query[i] == "NCBI784":
+            st.meta["pixel_size_um_estimated"] = 0.3639107956749145   # Same as NCBI785
         logger.info(f"Processing {ids_to_query[i]} {technology[i]}...")
-        print(st)
         match technology[i]:
             case "Visium":
                 perform_visium_processing(st, path_dataset)
+                add_hoverfast_preprocessing(st, path_dataset)
             case "Xenium":
-                perform_xenium_processing(st, path_dataset)
+                perform_xenium_processing(st, path_dataset, shape_name=shape_name)
             case _:
                 raise ValueError(f"This should not happen, got {technology[i]}")
     logger.info("End of processing without errors.")
 
 
 def plot_cellst(
-    path_dataset: Path, ids_to_query: list[str], technology: list[str]
+    path_dataset: Path, ids_to_query: list[str], technology: list[str], shape_name: str
 ) -> None:
     for i, st in enumerate(
         iter_hest(
@@ -135,9 +166,10 @@ def plot_cellst(
         logger.info(f"Plotting {ids_to_query[i]} {technology[i]}...")
         match technology[i]:
             case "Visium":
-                plot_visium(st, path_dataset)
+                plot_visium(st, path_dataset, shape_name=shape_name)
+                add_hoverfast_plots(st, path_dataset)
             case "Xenium":
-                plot_xenium(st, path_dataset)
+                plot_xenium(st, path_dataset, shape_name=shape_name)
             case _:
                 raise ValueError(f"This should not happen, got {technology[i]}")
     logger.info("End of plotting without errors.")

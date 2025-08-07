@@ -30,7 +30,7 @@ COLOR_MAP = {
     "Epithelial": (1.0, 0.4980392156862745, 0.0),
     "Inflammatory": (0.21568627450980393, 0.49411764705882355, 0.7215686274509804),
     "Neoplastic": (0.8941176470588236, 0.10196078431372549, 0.10980392156862745),
-    "Nolabel": (1, 1, 1),
+    "Nolabel": (0, 0, 0),
 }
 
 CLASS_LABELS = {
@@ -42,6 +42,29 @@ CLASS_LABELS = {
     "Nolabel": -1,
 }
 SUB_CLASS_LABELS = ["Connective", "Inflammatory", "Neoplastic"]
+GENE_2_CELLTYPE = {
+    "EPCAM": "Neoplastic",
+    "PTPRC": "Inflammatory",
+    "INHBA": "Connective",
+    "CDH1": "Neoplastic",
+    "CD3E": "Inflammatory",
+    "COL1A2": "Connective",
+}
+GROUP_2_CELLTYPE = {
+    "fibroblast": "Connective",
+    "endothelial cell": "Connective",
+    "lymphocyte": "Inflammatory",
+    "plasma cell": "Inflammatory",
+    "epithelial cell": "Neoplastic",
+    'T cell': 'Inflammatory',
+    'mast cell': 'Inflammatory',
+    'mononuclear phagocyte': 'Inflammatory',
+    'B cell': 'Inflammatory',
+    'neutrophil': 'Inflammatory',
+    'plasmacytoid dendritic cell': 'Inflammatory',
+    'malignant cell': 'Neoplastic',
+
+}
 REV_CLASS_LABELS = {v: k for k, v in CLASS_LABELS.items()}
 
 # Registry keys

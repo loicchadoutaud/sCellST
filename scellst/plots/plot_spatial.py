@@ -1,10 +1,11 @@
 from matplotlib import pyplot as plt, cm
 import scanpy as sc
 from matplotlib.colors import Normalize
-from scipy.stats import spearmanr
+from scipy.stats import spearmanr, pearsonr
 from anndata import AnnData
 from pathlib import Path
 from matplotlib.gridspec import GridSpec
+from loguru import logger
 
 
 def plot_spatial(
@@ -52,46 +53,46 @@ def plot_spatial(
 
 
 def plot_top_genes(
-    adata: AnnData, adata_pred: AnnData, gene_name: str, save_path: Path
+    adata: AnnData, adata_pred: AnnData, list_gene: list[str], save_path: Path
 ) -> None:
     """
     Plot H&E image, spatial expression, and predicted vs true gene expression with a jointplot.
     """
-    # Extract data
-    true_expression = adata[:, gene_name].X.flatten()
-    predicted_expression = adata_pred[:, gene_name].X.flatten()
-
-    # Compute Spearman correlation
-    scc = spearmanr(predicted_expression, true_expression)[0]
-
-    # Prepare figure size
-    img_shape = adata.uns["spatial"]["ST"]["images"]["downscaled_fullres"].shape
-
     # Create a figure with gridspec for jointplot integration
-    fig = plt.figure(figsize=(14, 5))
-    gs = GridSpec(1, 3, width_ratios=[1, 1, 0.1], figure=fig)
+    fig = plt.figure(figsize=(14, 5*len(list_gene)))
+    gs = GridSpec(len(list_gene), 3, width_ratios=[1, 1, 0.1], figure=fig)
 
-    # Subplot 2: Target gene spatial expression
-    ax = fig.add_subplot(gs[0])
-    plot_spatial(adata, color=gene_name, title=f"Target gene {gene_name}", ax=ax)
+    for i, gene_name in enumerate(list_gene):
+        logger.info(f"Plotting gene {gene_name}")
 
-    # Subplot 3: Predicted gene spatial expression
-    ax = fig.add_subplot(gs[1])
-    plot_spatial(
-        adata_pred,
-        color=gene_name,
-        title=f"Predicted gene {gene_name} (scc: {scc:.2f})",
-        ax=ax,
-    )
+        # Extract data
+        true_expression = adata[:, gene_name].X.flatten()
+        predicted_expression = adata_pred[:, gene_name].X.flatten()
 
-    # Colorbar
-    ax = fig.add_subplot(gs[2])
-    norm = Normalize(vmin=0, vmax=1)
-    cmap = plt.colormaps["magma"]
-    sm = cm.ScalarMappable(cmap=cmap, norm=norm)
-    cbar = fig.colorbar(sm, cax=ax, orientation="vertical")
-    cbar.set_ticks([0, 1])
-    cbar.set_ticklabels(["low", "high"])
+        # Compute Spearman correlation
+        pcc = pearsonr(predicted_expression, true_expression)[0]
+
+        # Subplot 2: Target gene spatial expression
+        ax = fig.add_subplot(gs[i, 0])
+        plot_spatial(adata, color=gene_name, title=f"Target gene {gene_name}", ax=ax)
+
+        # Subplot 3: Predicted gene spatial expression
+        ax = fig.add_subplot(gs[i, 1])
+        plot_spatial(
+            adata_pred,
+            color=gene_name,
+            title=f"Predicted gene {gene_name} (pcc: {pcc:.2f})",
+            ax=ax,
+        )
+
+        # Colorbar
+        ax = fig.add_subplot(gs[i, 2])
+        norm = Normalize(vmin=0, vmax=1)
+        cmap = plt.colormaps["magma"]
+        sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+        cbar = fig.colorbar(sm, cax=ax, orientation="vertical")
+        cbar.set_ticks([0, 1])
+        cbar.set_ticklabels(["low", "high"])
 
     # Save the figure
     fig.tight_layout()

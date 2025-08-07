@@ -10,8 +10,10 @@ data:
   filter_cells: true
   normalize: true
   log1p: true
-  scale: "slide_scaling"
+  scale: "no_scaling"
   genes:
   embedding_tag:
   dataset_handler: "mil"
+  use_cell_type: false
+  shape_name: "cellvit"
   fold:

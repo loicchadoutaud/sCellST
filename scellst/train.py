@@ -6,8 +6,8 @@ from lightning.pytorch import seed_everything
 
 from scellst.dataset.data_module import prepare_data_module
 from scellst.trainer import prepare_trainer
-from scellst.io_utils import load_config
-from scellst.utils import update_config, create_tag, prepare_model
+from scellst.utils.io_utils import load_config
+from scellst.utils.utils import update_config, create_tag, prepare_model
 
 
 def train_and_save(

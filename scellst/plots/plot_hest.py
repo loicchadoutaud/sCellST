@@ -3,7 +3,7 @@ from geopandas import GeoDataFrame
 import scanpy as sc
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
-
+import seaborn as sns
 from numpy import ndarray
 
 
@@ -16,8 +16,15 @@ def save_cell_images(img_arr: ndarray, save_path: str) -> None:
         classes (ndarray): arr of cell classes
         save_path (str): path to save the image
     """
+    # Get center of image
+    w, h = img_arr.shape[1:3]
+    true_w, true_h = int(w * 2 / 3), int(h * 2 / 3)
+    margin = (w - true_w) // 2
+    img_arr = img_arr[:, margin:-margin, margin:-margin, :]
+
+    # Plot images
     n_rows = 10
-    n_cols = len(img_arr) // n_rows + 1
+    n_cols = len(img_arr) // n_rows
     fig = plt.figure(figsize=(n_cols, n_rows))
     grid = ImageGrid(
         fig, 111, nrows_ncols=(n_rows, n_cols), axes_pad=0.1, direction="column"
@@ -25,7 +32,7 @@ def save_cell_images(img_arr: ndarray, save_path: str) -> None:
     for ax, im in zip(grid, img_arr):
         ax.imshow(im)
         ax.axis("off")
-    fig.savefig(save_path)
+    fig.savefig(save_path, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -38,8 +45,15 @@ def save_class_cell_images(img_arr: ndarray, classes: ndarray, save_path: str) -
         classes (ndarray): arr of cell classes
         save_path (str): path to save the image
     """
+    # Get centers of images
+    w, h = img_arr.shape[1:3]
+    true_w, true_h = int(w * 2 / 3), int(h * 2 / 3)
+    margin = (w - true_w) // 2
+    img_arr = img_arr[:, margin:-margin, margin:-margin, :]
+
+    # Plot images
     n_rows = 10
-    n_cols = 50
+    n_cols = 60
     fig = plt.figure(figsize=(n_cols, n_rows))
     grid = ImageGrid(
         fig, 111, nrows_ncols=(n_rows, n_cols), axes_pad=0.1, direction="column"
@@ -58,7 +72,7 @@ def save_class_cell_images(img_arr: ndarray, classes: ndarray, save_path: str) -
     y = 0.91
     y_text = y + 0.04
     x_threshold = 2 * (coordinates[1, 0] - coordinates[0, 2])
-    for i in range(5):
+    for i in range(6):
         x_min, x_max = coordinates[10 * i, 0], coordinates[10 * (i + 1) - 1, 2]
         x_min, x_max = x_min + x_threshold, x_max - x_threshold
         line = plt.Line2D(
@@ -80,7 +94,7 @@ def save_class_cell_images(img_arr: ndarray, classes: ndarray, save_path: str) -
             va="center",
         )
 
-    fig.savefig(save_path)
+    fig.savefig(save_path, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -100,7 +114,7 @@ def plot_segmentation_with_slide(
     gdf.centroid.plot(ax=axs[1], color=gdf["class_color"], markersize=0.003)
     axs[1].invert_yaxis()
     axs[1].axis("off")
-    fig.savefig(save_path)
+    fig.savefig(save_path, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -140,18 +154,34 @@ def plot_spot_with_cells(
     grid.axes_all[0].set_title(
         f"All cells (n={len(gdf)}) in spot", fontsize=16, loc="left"
     )
-    fig.savefig(save_path)
+    fig.savefig(save_path, bbox_inches="tight")
     plt.close(fig)
 
 
 def plot_visium(adata: sc.AnnData, save_path: str, key="total_counts") -> None:
-    fig = sc.pl.spatial(
+    fig, ax = plt.subplots(figsize=(6, 5))
+    sc.pl.spatial(
         adata,
-        show=False,
         img_key="downscaled_fullres",
-        color=[key],
+        color=key,
         title=f"{key}",
-        return_fig=True,
+        show=False,
+        ax=ax,
     )
-    fig.savefig(save_path)
+    fig.savefig(save_path, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_histogram(adata: sc.AnnData, save_path: str, key="total_counts") -> None:
+    fig, ax = plt.subplots(figsize=(6, 5))
+    binwidth = 1
+    binrange = (0, 60)
+    sns.histplot(
+        data=adata.obs,
+        x=key,
+        ax=ax,
+        binwidth=binwidth,
+        binrange=binrange,
+    )
+    fig.savefig(save_path, bbox_inches="tight")
     plt.close(fig)

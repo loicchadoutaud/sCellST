@@ -5,7 +5,7 @@ from loguru import logger
 from numpy import ndarray
 
 from scipy.stats import pearsonr, spearmanr
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
 
 
 def compute_regression_metrics(
@@ -29,30 +29,20 @@ def compute_regression_metrics(
             "Number of target names must match the number of targets in Y and Y_pred."
         )
 
-    # Pearson correlation for each target
-    pcc = [pearsonr(Y[:, i], Y_pred[:, i])[0] for i in range(Y.shape[1])]
+    output_dict = {}
+    correlations = {"pcc": pearsonr, "scc": spearmanr}
+    for corr_name, corr_func in correlations.items():
+        corr = [corr_func(Y[:, i], Y_pred[:, i])[0] for i in range(Y.shape[1])]
+        output_dict.update({f"{corr_name}/{target}": val for target, val in zip(target_names, corr)})
+        logger.info(f"Mean {corr_name}: {np.nanmean(corr):.2f}")
 
-    # Spearman correlation for each target
-    scc = [spearmanr(Y[:, i], Y_pred[:, i])[0] for i in range(Y.shape[1])]
+    metrics = {"rmse": root_mean_squared_error, "mae": mean_absolute_error, "r2": r2_score}
+    for metric_name, metric_func in metrics.items():
+        met = [metric_func(Y[:, i], Y_pred[:, i]) for i in range(Y.shape[1])]
+        output_dict.update({f"{metric_name}/{target}": val for target, val in zip(target_names, met)})
+        logger.info(f"Mean {metric_name}: {np.nanmean(met):.2f}")
 
-    # MSE for each target
-    mse = [mean_squared_error(Y[:, i], Y_pred[:, i]) for i in range(Y.shape[1])]
-
-    # Combine metrics into a dictionary
-    metrics = {f"pcc/{target}": pcc_val for target, pcc_val in zip(target_names, pcc)}
-    metrics.update(
-        {f"scc/{target}": scc_val for target, scc_val in zip(target_names, scc)}
-    )
-    metrics.update(
-        {f"mse/{target}": mse_val for target, mse_val in zip(target_names, mse)}
-    )
-
-    # Log summary metrics
-    logger.info(f"Mean pcc: {np.nanmean(pcc):.2f}")
-    logger.info(f"Mean scc: {np.nanmean(scc):.2f}")
-    logger.info(f"Mean mse: {np.nanmean(mse):.2f}")
-
-    return metrics
+    return output_dict
 
 
 def compute_gene_metrics(adata: AnnData, adata_pred: AnnData) -> pd.DataFrame:
@@ -60,16 +50,18 @@ def compute_gene_metrics(adata: AnnData, adata_pred: AnnData) -> pd.DataFrame:
     logger.info("Starting metrics computation.")
 
     # Find common genes
-    predicted_set = set(adata_pred.var_names)
-    common_genes = [g for g in adata.var_names if g in predicted_set]
+    common_genes = list(set(adata.var_names) & set(adata_pred.var_names))
     logger.info(
         f"Found {len(common_genes)} / {len(adata.var_names)} in measured genes."
     )
     logger.info(
         f"Found {len(common_genes)} / {len(adata_pred.var_names)} in predicted genes."
     )
+    common_genes = np.sort(common_genes)
     adata = adata[:, common_genes]
     adata_pred = adata_pred[:, common_genes]
+
+    logger.info(f"Computing supervised metrics on {adata.shape} and {adata_pred.shape}.")
 
     # Supervised metrics
     logger.info("Starting supervised metrics computation.")

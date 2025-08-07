@@ -4,6 +4,7 @@ import h5py
 import numpy as np
 import pandas as pd
 import scanpy as sc
+from loguru import logger
 
 from scellst.constant import REV_CLASS_LABELS, CLASS_LABELS, COLOR_MAP
 from scellst.plots.plot_hest import (
@@ -12,8 +13,8 @@ from scellst.plots.plot_hest import (
     plot_spot_with_cells,
     save_cell_images,
     plot_visium,
+    plot_histogram
 )
-from hest.HESTData import save_spatial_plot
 
 
 class PlotMixin:
@@ -21,18 +22,22 @@ class PlotMixin:
         self,
         cell_img_save_dir: str,
         save_dir: str,
+        shape_name: str,
         name: str | None = None,
         n_cells: int = 100,
         suffix: str = "gallery",
     ) -> None:
+        logger.info("Plotting cell class gallery...")
         if name is None:
             name = self.meta["id"]
 
-        h5_path = os.path.join(cell_img_save_dir, name + ".h5")
+        h5_path = os.path.join(cell_img_save_dir, f"{name}_{shape_name}.h5")
         assert os.path.exists(h5_path), f"{h5_path} does not exist"
 
         h5_file = h5py.File(h5_path, "r")
-        cell_class = np.vectorize(REV_CLASS_LABELS.get)(h5_file["label"][:])
+        label = h5_file["label"][:]
+        label = np.where(np.isnan(label), -1, label).astype(int)
+        cell_class = np.vectorize(REV_CLASS_LABELS.get)(label)
         all_cell_imgs = []
         unique_classes = np.sort(np.asarray(list(CLASS_LABELS.keys())))
         for class_name in unique_classes:
@@ -57,21 +62,23 @@ class PlotMixin:
         save_class_cell_images(
             all_cell_imgs,
             unique_classes,
-            os.path.join(save_dir, name + f"_{suffix}.png"),
+            os.path.join(save_dir, name + f"_{shape_name}_{suffix}.png"),
         )
 
     def plot_cell_random_gallery(
         self,
         cell_img_save_dir: str,
         save_dir: str,
+        shape_name: str,
         name: str | None = None,
         n_cells: int = 500,
         suffix: str = "gallery",
     ) -> None:
+        logger.info("Plotting random gallery...")
         if name is None:
             name = self.meta["id"]
 
-        h5_path = os.path.join(cell_img_save_dir, name + ".h5")
+        h5_path = os.path.join(cell_img_save_dir, f"{name}_{shape_name}.h5")
         assert os.path.exists(h5_path), f"{h5_path} does not exist"
 
         h5_file = h5py.File(h5_path, "r")
@@ -84,7 +91,7 @@ class PlotMixin:
         os.makedirs(save_dir, exist_ok=True)
         save_cell_images(
             all_cell_imgs,
-            os.path.join(save_dir, name + f"_random_{suffix}.png"),
+            os.path.join(save_dir, name + f"_{shape_name}_random_{suffix}.png"),
         )
 
     def plot_cell_gene_gallery(
@@ -92,15 +99,18 @@ class PlotMixin:
         cell_img_save_dir: str,
         cell_adata_save_dir: str,
         save_dir: str,
+        shape_name: str,
         gene: str,
         name: str | None = None,
         n_cells: int = 100,
         suffix: str = "gallery",
     ) -> None:
+        logger.info("Plotting gene cell gallery...")
+
         if name is None:
             name = self.meta["id"]
 
-        h5_path = os.path.join(cell_img_save_dir, name + ".h5")
+        h5_path = os.path.join(cell_img_save_dir, f"{name}_{shape_name}.h5")
         assert os.path.exists(h5_path), f"{h5_path} does not exist"
 
         cell_adata_path = os.path.join(cell_adata_save_dir, name + ".h5ad")
@@ -119,7 +129,7 @@ class PlotMixin:
         os.makedirs(save_dir, exist_ok=True)
         save_cell_images(
             all_cell_imgs,
-            os.path.join(save_dir, name + f"_{gene}_{suffix}.png"),
+            os.path.join(save_dir, name + f"_{shape_name}_{gene}_{suffix}.png"),
         )
 
     def plot_cell_visualisation(
@@ -130,16 +140,21 @@ class PlotMixin:
         coordinates_name: str = "he",
         suffix: str = "spatial_vis",
     ) -> None:
+        logger.info("Plotting cell visualisation...")
+
         if name is None:
             name = self.meta["id"]
 
         gdf = self.get_shapes(shape_name, coordinates_name).shapes
         gdf["class_color"] = gdf["class"].map(COLOR_MAP)
+        gdf["class_color"] = gdf["class_color"].apply(
+            lambda x: x if pd.notna(x) else COLOR_MAP["Nolabel"]
+        )
         os.makedirs(save_dir, exist_ok=True)
         plot_segmentation_with_slide(
             img_arr=self.adata.uns["spatial"]["ST"]["images"]["downscaled_fullres"],
             gdf=gdf,
-            save_path=os.path.join(save_dir, name + f"_{suffix}.png"),
+            save_path=os.path.join(save_dir, name + f"_{shape_name}_{suffix}.png"),
         )
 
     def plot_spot_and_cell(
@@ -151,11 +166,12 @@ class PlotMixin:
         shape_name: str = "cellvit",
         coordinates_name: str = "he",
     ) -> None:
+        logger.info("Plotting cell in spots...")
         if name is None:
             name = self.meta["id"]
 
-        h5_cell_path = os.path.join(cell_img_save_dir, name + ".h5")
-        save_path = os.path.join(save_dir, name + f"_spot_{spot_idx}.png")
+        h5_cell_path = os.path.join(cell_img_save_dir, f"{name}_{shape_name}.h5")
+        save_path = os.path.join(save_dir, name + f"_{shape_name}_spot_{spot_idx}.png")
 
         # Get spot image
         patch_size_src = self.meta["spot_diameter"] / self.pixel_size
@@ -172,6 +188,9 @@ class PlotMixin:
         ylim = (coords_topleft[1], coords_topleft[1] + patch_size_src)
         gdf = self.get_shapes(shape_name, coordinates_name).shapes
         gdf["class_color"] = gdf["class"].map(COLOR_MAP)
+        gdf["class_color"] = gdf["class_color"].apply(
+            lambda x: x if pd.notna(x) else COLOR_MAP["Nolabel"]
+        )
         gdf["center"] = gdf.centroid
         gdf["center_x"] = gdf["center"].apply(lambda c: c.x)
         gdf["center_y"] = gdf["center"].apply(lambda c: c.y)
@@ -199,13 +218,15 @@ class PlotMixin:
     def plot_spots_with_number_of_cells(
         self,
         cell_img_save_dir: str,
+        shape_name: str,
         save_dir: str,
         name: str | None = None,
     ) -> None:
+        logger.info("Plotting spot cell counts...")
         if name is None:
             name = self.meta["id"]
 
-        h5_cell_path = os.path.join(cell_img_save_dir, name + ".h5")
+        h5_cell_path = os.path.join(cell_img_save_dir, f"{name}_{shape_name}.h5")
         with h5py.File(h5_cell_path, "r") as h5_file:
             cell_spots = h5_file["spot"][:].astype(str).squeeze()
 
@@ -214,5 +235,29 @@ class PlotMixin:
         self.adata.obs["spot_cell_count"] = spot_cell_counts
 
         os.makedirs(save_dir, exist_ok=True)
-        save_path = os.path.join(save_dir, name + "_spot_cell_count.png")
+        save_path = os.path.join(save_dir, name + f"_{shape_name}_spot_cell_count.png")
         plot_visium(self.adata, save_path, "spot_cell_count")
+
+    def plot_hist_number_of_cells(
+        self,
+        cell_img_save_dir: str,
+        shape_name: str,
+        save_dir: str,
+        name: str | None = None,
+    ) -> None:
+        logger.info("Plotting histogram spot cell counts...")
+        if name is None:
+            name = self.meta["id"]
+
+        h5_cell_path = os.path.join(cell_img_save_dir, f"{name}_{shape_name}.h5")
+        with h5py.File(h5_cell_path, "r") as h5_file:
+            cell_spots = h5_file["spot"][:].astype(str).squeeze()
+
+        spot_cell_counts = pd.Series(cell_spots).value_counts()
+        spot_cell_counts.drop("None", inplace=True)
+        self.adata.obs["spot_cell_count"] = spot_cell_counts
+
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, name + f"_{shape_name}_hist_cell_count.png")
+        plot_histogram(self.adata, save_path, "spot_cell_count")
+

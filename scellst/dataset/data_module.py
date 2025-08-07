@@ -45,6 +45,7 @@ class STDataModule(L.LightningDataModule):
         scale: str = "no_scaling",
         frac_train: float = 0.8,
         fold: int | None = None,
+        shape_name: str | None = "cellvit",
         seed: int = 42,
     ):
         super().__init__()
@@ -62,6 +63,7 @@ class STDataModule(L.LightningDataModule):
         self.log1p = log1p
         self.scale = scale
         self.frac_train = frac_train
+        self.shape_name = shape_name
         self.fold = fold
         self.gen = torch.Generator().manual_seed(seed)
         if type(dataset_handler) is MilVisiumHandler:
@@ -88,8 +90,9 @@ class STDataModule(L.LightningDataModule):
 
         # Load and preprocess data
         embedding_path = (
-            self.data_dir / "cell_embeddings" / f"{self.embedding_tag}_{id}.h5"
+            self.data_dir / "cell_embeddings" / f"{self.embedding_tag}_{id}_{self.shape_name}.h5"
         )
+
         adata = self.dataset_handler.load_and_preprocess_data(
             self.data_dir,
             id,
@@ -98,6 +101,7 @@ class STDataModule(L.LightningDataModule):
             self.normalize,
             self.log1p,
             embedding_path,
+            self.shape_name,
         )
 
         # Convert sparse to dense matrix if needed
@@ -188,6 +192,7 @@ class STDataModule(L.LightningDataModule):
                 scaler.fit(self.adata.X)
                 for key, adata in self.adata_dict.items():
                     adata.X = scaler.transform(adata.X)
+
             elif self.scale == "slide_scaling":
                 logger.info("Applying robust scaling to data slide-by-slide.")
                 for key, adata in self.adata_dict.items():
@@ -236,6 +241,15 @@ class STDataModule(L.LightningDataModule):
                 embedding_path=self.adata.uns["cell_embedding_path"]
             )
 
+
+    def get_obs_names(self) -> list:
+        assert hasattr(self, "predict_dataset"), "Inference dataset has not been created."
+        obs_names = self.predict_dataset.obs_names
+        if not self.predict_id in obs_names[0]:
+            obs_names = [f"{b}_{self.predict_id}" for b in obs_names]
+        return obs_names
+
+
     def _create_dataloader(self, dataset, batch_size: int, shuffle: bool):
         return DataLoader(
             dataset,
@@ -259,6 +273,7 @@ class STDataModule(L.LightningDataModule):
         )
 
     def get_gene_names(self) -> list[str]:
+        # Check if predict id is in names
         return self.genes_to_pred
 
 
@@ -298,6 +313,7 @@ def prepare_data_module(config: DictConfig, stage: str, task_type: str) -> STDat
         scale=config.scale,
         frac_train=config.frac_train,
         fold=config.fold,
+        shape_name=config.shape_name,
         seed=config.seed,
     )
     data_module.prepare_data()

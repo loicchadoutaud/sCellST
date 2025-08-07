@@ -11,41 +11,31 @@ from torch import Tensor
 
 from scellst.constant import METRICS_DIR, FIGURES_DIR, PREDS_DIR, REV_CLASS_LABELS
 from scellst.dataset.data_module import prepare_data_module, STDataModule
-from scellst.io_utils import load_yaml
+from scellst.utils.io_utils import load_yaml
 from scellst.lightning_model.base_lightning_model import BaseLightningModel
 from scellst.metrics.gene import compute_gene_metrics
 from scellst.metrics.metric_utils import format_metric_df
 from scellst.plots.plot_spatial import plot_top_genes
-from scellst.utils import update_config, load_model
+from scellst.utils.utils import update_config, load_model
 
 
 def format_predictions(
-    predictions: list[Tensor], data_module: STDataModule, infer_mode: str
+    predictions: list[Tensor], data_module: STDataModule
 ) -> AnnData:
     X = np.concatenate(predictions, axis=0)
 
-    index = (
-        data_module.adata.obs_names if infer_mode == "bag" else np.arange(X.shape[0])
-    )
+    index = data_module.get_obs_names()
     obs = pd.DataFrame(index=index)
-
     var = pd.DataFrame(index=data_module.genes)
 
     uns = data_module.adata.uns
     if "spot_cell_map" in uns.keys():
         del uns["spot_cell_map"]
 
-    obsm = (
-        {"spatial": data_module.adata.obsm["spatial"]}
-        if ("spatial" in data_module.adata.obsm_keys() and (infer_mode == "instance"))
-        else {}
-    )
-
     return AnnData(
         X=X,
         obs=obs,
         var=var,
-        obsm=obsm,
         uns=uns,
     )
 
@@ -60,22 +50,25 @@ def add_information_cell_adata(pred_adata: AnnData) -> AnnData:
     obs = pd.DataFrame(
         data={key: h5_file[key][:].squeeze() for key in key_to_load},
     )
+    obs[["x", "y"]] = h5_file["coords"][:]
+    obs["barcode"] = obs["barcode"].astype(str) + f"_{pred_adata.uns['hest_id']}"
+    obs = obs.set_index("barcode")
     obs["class"] = obs["label"].map(REV_CLASS_LABELS)
+    obs["class"] = obs["class"].fillna("Nolabel")
+    pred_adata.obs = pred_adata.obs.join(obs, how="left")
 
-    # Load spatial coordinates
-    obsm = {"spatial": h5_file["coords"][:]}
+    # Cell seg information
     pred_adata.uns["patch_size_src"] = h5_file["embedding"].attrs["patch_size_src"]
 
-    # Merge with predictions
-    pred_adata.obs = obs
-    pred_adata.obsm = obsm
+    # Spatial coords
+    pred_adata.obsm["spatial"] = pred_adata.obs[["x", "y"]].values
+    pred_adata.obs.drop(["x", "y"], axis=1, inplace=True)
 
     return pred_adata
 
 
 def save_metrics(metrics: pd.DataFrame, config: DictConfig) -> None:
     output_dir = METRICS_DIR / config.save_dir_tag / config.data.dataset_handler
-    print(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = (
         output_dir
@@ -107,11 +100,9 @@ def save_plots(
         / f"{config.exp_tag};test_slide={config.data.predict_id};infer_mode={config.infer_mode}"
     )
     save_dir.mkdir(parents=True, exist_ok=True)
-    metrics = format_metric_df(metrics)
-    pcc_metrics = metrics[metrics["metric"] == "scc"].sort_values(
-        by="value", ascending=False
-    )
-    genes_to_plot = pcc_metrics["gene"].values[:10]
+    metrics = format_metric_df(metrics, metric_list=["scc"])
+    metrics.sort_values(by="scc", ascending=False, inplace=True)
+    genes_to_plot = metrics["gene"].values[:10]
     for gene in genes_to_plot:
         if gene not in adata_pred.var_names:
             logger.info(f"Skipping {gene}, not found in adata pred")
@@ -128,6 +119,7 @@ def predict_and_save(
     config_dir: Path,
     config_kwargs: dict,
     infer_mode: str,
+    align: bool = True,
     compute_metrics: bool = False,
     save_adata: bool = False,
     with_plot: bool = False,
@@ -165,8 +157,24 @@ def predict_and_save(
     # Predict
     trainer = Trainer()
     predictions = trainer.predict(model, dataloaders=data_module.predict_dataloader())
-    adata_pred = format_predictions(predictions, data_module, infer_mode)
-    logger.info(f"Predicted {adata_pred.shape} / {data_module.adata.shape} spots.")
+    adata = data_module.adata
+    adata_pred = format_predictions(predictions, data_module)
+    logger.info(f"Predicted {adata_pred.shape}")
+
+    # Find common observations
+    if align:
+        common_obs = list(set(adata.obs_names) & set(adata_pred.obs_names))
+        logger.info(
+            f"Found {len(common_obs)} / {len(adata.obs_names)} in measured cells."
+        )
+        logger.info(
+            f"Found {len(common_obs)} / {len(adata_pred.obs_names)} in predicted cells."
+        )
+        adata = adata[common_obs, :]
+        adata_pred = adata_pred[common_obs, :]
+        adata_pred.obs = adata.obs
+        adata_pred.obsm["spatial"] = adata.obsm["spatial"]
+        adata_pred.uns = adata.uns
 
     # Optionally save adata
     if save_adata:
@@ -174,9 +182,10 @@ def predict_and_save(
 
     # Optionally compute metrics
     if compute_metrics:
-        metrics = compute_gene_metrics(data_module.adata, adata_pred)
+        metrics = compute_gene_metrics(adata, adata_pred)
         save_metrics(metrics, config)
 
         # Optionally save plots
         if with_plot:
-            save_plots(metrics, data_module.adata, adata_pred, config)
+            metrics["tag"] = config['exp_tag']
+            save_plots(metrics, adata, adata_pred, config)
