@@ -8,6 +8,16 @@ from matplotlib.gridspec import GridSpec
 from loguru import logger
 
 
+def _rasterize_points_in_axes(ax: plt.Axes, rasterize: bool = True) -> None:
+    """Rasterize only scatter-like PathCollections to keep text/axes vector."""
+    if not rasterize:
+        return
+    for coll in getattr(ax, "collections", []):
+        try:
+            coll.set_rasterized(True)
+        except Exception:
+            pass
+
 def plot_spatial(
     adata: AnnData,
     color: str | None,
@@ -50,6 +60,8 @@ def plot_spatial(
     ax.set_title(title, fontsize=20)
     ax.set_xlabel("")
     ax.set_ylabel("")
+
+    _rasterize_points_in_axes(ax, rasterize=True)
 
 
 def plot_top_genes(
@@ -96,4 +108,4 @@ def plot_top_genes(
 
     # Save the figure
     fig.tight_layout()
-    fig.savefig(save_path, bbox_inches="tight", dpi=100)
+    fig.savefig(save_path, bbox_inches="tight", dpi=300)

@@ -50,7 +50,7 @@ def compute_common_hvg(
         subset=True,
         layer="counts",
         flavor="seurat_v3",
-        batch_key="batch",
+        batch_key=batch_key,
     )
 
     # Create a new AnnData with only the selected HVGs
@@ -103,6 +103,7 @@ def prepare_list_svg(
                 normalize=True,
                 log1p=True,
                 embedding_path=None,
+                shape_name=None,
             )
         )
     adata = ad.concat(list_adata, join="inner", index_unique="_", label="batch")

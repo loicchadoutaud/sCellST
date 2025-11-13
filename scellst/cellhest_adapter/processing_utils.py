@@ -229,4 +229,4 @@ def remove_dataset(path_dataset: Path, ids_to_remove: list[str]) -> None:
     for id in ids_to_remove:
         logger.info(f"Removing {id}...")
         remove_files_with_identifier(path_dataset, id)
-    logger.info("End of Removing without errors.")
+    logger.info("End or Removing without errors.")
