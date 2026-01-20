@@ -110,11 +110,11 @@ def plot_visium(st: HESTData, dataset_path: Path, shape_name: str) -> None:
     #     save_dir=dataset_path / CELL_PLOT_DIR,
     #     shape_name=shape_name,
     # )
-    cst.plot_hist_number_of_cells(
-        cell_img_save_dir=dataset_path / CELL_IMG_DIR,
-        save_dir=dataset_path / CELL_PLOT_DIR,
-        shape_name=shape_name,
-    )
+    # cst.plot_hist_number_of_cells(
+    #     cell_img_save_dir=dataset_path / CELL_IMG_DIR,
+    #     save_dir=dataset_path / CELL_PLOT_DIR,
+    #     shape_name=shape_name,
+    # )
     # for spot_index in np.arange(0, 5):
     #     cst.plot_spot_and_cell(
     #         cell_img_save_dir=dataset_path / CELL_IMG_DIR,

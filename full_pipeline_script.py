@@ -3,9 +3,10 @@ from scellst.submit_function import download_data, run_ssl, embed_cells
 from scellst.train import train_and_save
 from scellst.predict import predict_and_save
 
-### Download data
 path_dataset = Path("hest_data")
 list_sample_ids = ["TENX39"]
+
+### Download data
 download_data(path_dataset, None, list_sample_ids)
 
 ### Embed cells
@@ -31,7 +32,21 @@ train_and_save(config_path, additional_kwargs)
 
 ### Predict
 exp_tag = "embedding_tag=imagenet-rn50_train;genes=HVG:1000;train_slide=TENX39"
-config_dir = Path("models") / "mil" / "test" / "exp_tag"
+config_dir = Path("models") / "mil" / "test" / exp_tag
 additional_kwargs = {"predict_id": list_sample_ids[0]}
 infer_mode = "bag"  # or instance to have cell level outputs
-predict_and_save(config_dir, additional_kwargs, infer_mode, save_adata=True)
+predict_and_save(config_dir, additional_kwargs, infer_mode, compute_metrics=True, save_adata=True)
+
+
+### Clean
+import shutil
+list_path = [
+    path_dataset,
+    Path("models/mil/test"),
+    Path("lightning_logs"),
+    Path("reports/metrics/test"),
+]
+for path in list_path:
+    if path.exists():
+        print(f"Deleting {path}")
+        shutil.rmtree(path)
