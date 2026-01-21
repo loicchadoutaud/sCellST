@@ -7,3 +7,6 @@ logger.add(
     sink=sys.stdout,
     format="<green>{time:HH:mm:ss}</green> <level>{level}</level>: <level>{message}</level>",
 )
+
+import dask
+dask.config.set({'dataframe.query-planning': False})

@@ -1,0 +1,38 @@
+[project]
+name = "scellst"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "loicchadoutaud",email = "chadoutaudloic@gmail.com"}
+]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.11"
+torch = { version = "==2.4.1", source = "pytorch-gpu-src" }
+torchvision = { version = "==0.19.1", source = "pytorch-gpu-src" }
+hest = {git = "https://github.com/mahmoodlab/HEST.git"}
+wandb = "^0.24.0"
+pyarrow = ">=16.1.0,<21"
+lightning = "^2.6.0"
+omegaconf = "^2.3.0"
+torch-scatter = {version = "^2.1.2", source = "pytorch-geom"}
+squidpy = "<1.6.6"
+scikit-misc = "^0.5.2"
+datasets = "<4.0.0"
+
+[[tool.poetry.source]]
+name = "pytorch-gpu-src"
+url = "https://download.pytorch.org/whl/cu118"
+priority = "explicit"
+
+[[tool.poetry.source]]
+name = "pytorch-geom"
+url = "https://data.pyg.org/whl/torch-2.4.1+cu118.html"
+priority = "explicit"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+

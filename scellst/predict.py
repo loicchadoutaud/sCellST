@@ -19,9 +19,7 @@ from scellst.plots.plot_spatial import plot_top_genes
 from scellst.utils.utils import update_config, load_model
 
 
-def format_predictions(
-    predictions: list[Tensor], data_module: STDataModule
-) -> AnnData:
+def format_predictions(predictions: list[Tensor], data_module: STDataModule) -> AnnData:
     X = np.concatenate(predictions, axis=0)
 
     index = data_module.get_obs_names()
@@ -155,7 +153,7 @@ def predict_and_save(
     )
 
     # Predict
-    trainer = Trainer()
+    trainer = Trainer(devices=1)
     predictions = trainer.predict(model, dataloaders=data_module.predict_dataloader())
     adata = data_module.adata
     adata_pred = format_predictions(predictions, data_module)
@@ -187,5 +185,5 @@ def predict_and_save(
 
         # Optionally save plots
         if with_plot:
-            metrics["tag"] = config['exp_tag']
+            metrics["tag"] = config["exp_tag"]
             save_plots(metrics, adata, adata_pred, config)

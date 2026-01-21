@@ -25,7 +25,7 @@ def download_data(
     assert (organ is not None) ^ (
         ids_to_query is not None
     ), f"Only one should not be none, got: organ={organ} and ids_to_query={ids_to_query}"
-    df = pd.read_csv("external/HEST/assets/HEST_v1_1_0.csv")
+    df = pd.read_csv("data/HEST_v1_1_0.csv")
     df = df.set_index("id")
     df = df.sort_index()
     if ids_to_query:
