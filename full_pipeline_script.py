@@ -38,17 +38,3 @@ if __name__ == "__main__":
     additional_kwargs = {"predict_id": list_sample_ids[0]}
     infer_mode = "bag"  # or instance to have cell level outputs
     predict_and_save(config_dir, additional_kwargs, infer_mode, compute_metrics=True, save_adata=True)
-
-
-    ### Clean
-    import shutil
-    list_path = [
-        path_dataset,
-        Path("models/mil/test"),
-        Path("lightning_logs"),
-        Path("reports/metrics/test"),
-    ]
-    for path in list_path:
-        if path.exists():
-            print(f"Deleting {path}")
-            shutil.rmtree(path)
