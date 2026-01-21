@@ -6,17 +6,15 @@ sCellST is a novel method for inferring gene expression from H&E images trained 
 ![figure](method.jpg)
 
 # Installation
-The code has been tested with python 3.10 and cuda 11.8
+The code has been tested with python 3.10 and cuda 11.8. To install the envrionment we used poetry which you can install from [poetry](https://python-poetry.org/). Make sure to use a version at least >= 2.0.
+Then, you can simply run your code with `poetry run`
 
 ```bash
-git clone --recurse-submodules git@github.com:loicchadoutaud/sCellST.git
+git clone https://github.com/loicchadoutaud/sCellST.git
 cd sCellST
-conda env create -f environment.yml
-conda activate sCellST
-CODEPATH=$(realpath .)
-conda env config vars set PYTHONPATH=$PYTHONPATH:$CODEPATH:$CODEPATH/external/HEST/src:$CODEPATH/external/cell_SSL
-conda deactivate
-conda activate sCellST
+poetry install
+poetry add --editable ./external/cell_SSL   # For SSL training
+poetry run python full_pipeline_script.py
 ```
 
 # Code structure
@@ -25,9 +23,9 @@ The code now used the HEST database (https://github.com/mahmoodlab/HEST) as raw 
 
 The code is structured as follows:
 - scellst: source code for the sCellST method + benchmarked methods in scellst/bench
-- external: external code used in the project (as git submodules or code files when modification were necessary)
-- reproducibility notebooks contains all the notebooks used to produce the figures from the paper
-- submit scripts contains all the scripts used to submit the jobs on the cluster with submitit (https://github.com/facebookincubator/submitit)
+- external: external code used in the project
+- sCellST_reproducibility/reproducibility_figures contains all the notebooks used to produce the figures from the paper
+- sCellST_reproducibility/submit_scripts scripts contains all the scripts used to submit the jobs on the cluster with submitit (https://github.com/facebookincubator/submitit)
 - simulation: contains all the code for the simulation experiments
 
 # Usage
@@ -44,19 +42,20 @@ https://www.nature.com/articles/s41588-021-00911-1
 wget https://datasets.cellxgene.cziscience.com/fabd4946-3f41-459c-ba79-188749a8baa4.h5ad -O data/raw_breast_dataset.h5ad
 ```
 
-## Preprint
-https://www.biorxiv.org/content/early/2024/11/08/2024.11.07.622225
+## Full text link
+https://www.nature.com/articles/s41467-025-67965-1
 
 ```bash
-
-@article{chadoutaud_scellst_2024,
-	title = {{sCellST}: a {Multiple} {Instance} {Learning} approach to predict single-cell gene expression from {H}\&{E} images using spatial transcriptomics},
-	doi = {10.1101/2024.11.07.622225},
-	journal = {bioRxiv},
-	author = {Chadoutaud, Loic and Lerousseau, Marvin and Herrero-Saboya, Daniel and Ostermaier, Julian and Fontugne, Jacqueline and Barillot, Emmanuel and Walter, Thomas},
-	year = {2024}
+@article{chadoutaud_scellst_2026,
+	title = {{sCellST} predicts single-cell gene expression from {H}\& {E} images},
+	url = {https://www.nature.com/articles/s41467-025-67965-1},
+	doi = {10.1038/s41467-025-67965-1},
+	journal = {Nature Communications},
+	author = {Chadoutaud, Loïc and Lerousseau, Marvin and Herrero-Saboya, Daniel and Ostermaier, Julian and Fontugne, Jacqueline and Barillot, Emmanuel and Walter, Thomas},
+	year = {2026},
 }
+
 ```
 
 ## Credits
-We thanks the authors of the HEST database and the original Mocov3 (https://github.com/facebookresearch/moco-v3) adapted for this project 
+We thanks the authors of the HEST database (https://github.com/mahmoodlab/HEST) and the original Mocov3 (https://github.com/facebookresearch/moco-v3) adapted for this project 

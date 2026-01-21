@@ -11,14 +11,8 @@ if __name__ == "__main__":
     ### Download data
     download_data(path_dataset, None, list_sample_ids)
 
-    ### Embed cells
-    # # SSL training
-    # tag = "moco-TENX39-rn50"
-    # run_ssl(path_dataset, None, SAMPLE_IDS, tag, 2, 4)
-
     # TL
     tag = "imagenet-rn50"
-
     embed_cells(path_dataset, None, list_sample_ids, tag, "resnet50", "train")
 
     ### Train model
