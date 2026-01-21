@@ -155,7 +155,7 @@ def predict_and_save(
     )
 
     # Predict
-    trainer = Trainer()
+    trainer = Trainer(devices=1)
     predictions = trainer.predict(model, dataloaders=data_module.predict_dataloader())
     adata = data_module.adata
     adata_pred = format_predictions(predictions, data_module)

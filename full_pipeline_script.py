@@ -3,50 +3,52 @@ from scellst.submit_function import download_data, run_ssl, embed_cells
 from scellst.train import train_and_save
 from scellst.predict import predict_and_save
 
-path_dataset = Path("hest_data")
-list_sample_ids = ["TENX39"]
 
-### Download data
-download_data(path_dataset, None, list_sample_ids)
+if __name__ == "__main__":
+    path_dataset = Path("hest_data")
+    list_sample_ids = ["TENX39"]
 
-### Embed cells
-# # SSL training
-# tag = "moco-TENX39-rn50"
-# run_ssl(path_dataset, None, SAMPLE_IDS, tag, 2, 4)
+    ### Download data
+    download_data(path_dataset, None, list_sample_ids)
 
-# TL
-tag = "imagenet-rn50"
+    ### Embed cells
+    # # SSL training
+    # tag = "moco-TENX39-rn50"
+    # run_ssl(path_dataset, None, SAMPLE_IDS, tag, 2, 4)
 
-embed_cells(path_dataset, None, list_sample_ids, tag, "resnet50", "train")
+    # TL
+    tag = "imagenet-rn50"
 
-### Train model
-additional_kwargs = {
-    "data_dir": path_dataset,
-    "save_dir_tag": "test",
-    "embedding_tag": f"{tag}_train",
-    "genes": "HVG:1000",
-    "list_training_ids": list_sample_ids,
-}
-config_path = Path("config/gene_default.yaml")
-train_and_save(config_path, additional_kwargs)
+    embed_cells(path_dataset, None, list_sample_ids, tag, "resnet50", "train")
 
-### Predict
-exp_tag = "embedding_tag=imagenet-rn50_train;genes=HVG:1000;train_slide=TENX39"
-config_dir = Path("models") / "mil" / "test" / exp_tag
-additional_kwargs = {"predict_id": list_sample_ids[0]}
-infer_mode = "bag"  # or instance to have cell level outputs
-predict_and_save(config_dir, additional_kwargs, infer_mode, compute_metrics=True, save_adata=True)
+    ### Train model
+    additional_kwargs = {
+        "data_dir": path_dataset,
+        "save_dir_tag": "test",
+        "embedding_tag": f"{tag}_train",
+        "genes": "HVG:1000",
+        "list_training_ids": list_sample_ids,
+    }
+    config_path = Path("config/gene_default.yaml")
+    train_and_save(config_path, additional_kwargs)
+
+    ### Predict
+    exp_tag = "embedding_tag=imagenet-rn50_train;genes=HVG:1000;train_slide=TENX39"
+    config_dir = Path("models") / "mil" / "test" / exp_tag
+    additional_kwargs = {"predict_id": list_sample_ids[0]}
+    infer_mode = "bag"  # or instance to have cell level outputs
+    predict_and_save(config_dir, additional_kwargs, infer_mode, compute_metrics=True, save_adata=True)
 
 
-### Clean
-import shutil
-list_path = [
-    path_dataset,
-    Path("models/mil/test"),
-    Path("lightning_logs"),
-    Path("reports/metrics/test"),
-]
-for path in list_path:
-    if path.exists():
-        print(f"Deleting {path}")
-        shutil.rmtree(path)
+    ### Clean
+    import shutil
+    list_path = [
+        path_dataset,
+        Path("models/mil/test"),
+        Path("lightning_logs"),
+        Path("reports/metrics/test"),
+    ]
+    for path in list_path:
+        if path.exists():
+            print(f"Deleting {path}")
+            shutil.rmtree(path)
